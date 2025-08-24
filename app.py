@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 
-ADMIN_PASSWORD = "vincent123"
+ADMIN_PASSWORD = st.secrets["admin_password"]
 DB_FILE = "cirqit_dashboard.db"
 
 def init_db():
@@ -39,12 +39,31 @@ def ensure_teams_in_db(team_names):
     conn.commit()
     conn.close()
 
+
 @st.cache_data
 def load_data():
-    attendance = pd.read_excel("CirQit-TC-Attendance-AsOf-2025-08-23.xlsx", sheet_name=None, engine="openpyxl")
-    scores = pd.read_csv("CirQit-TC-TeamScores-AsOf-2025-08-23.csv")
-    masterlist = pd.read_csv("teams-masterlist.csv", encoding="ISO-8859-1")
+    import gspread
+    from google.oauth2.service_account import Credentials
+
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    service_account_info = st.secrets["google"]
+    credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+    gc = gspread.authorize(credentials)
+
+    ATTENDANCE_SHEET_ID = "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8"
+    SCORES_SHEET_ID = "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo"
+    MASTERLIST_SHEET_ID = "1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc"
+
+    attendance_sheet = gc.open_by_key(ATTENDANCE_SHEET_ID)
+    scores_sheet = gc.open_by_key(SCORES_SHEET_ID)
+    masterlist_sheet = gc.open_by_key(MASTERLIST_SHEET_ID)
+
+    attendance = {ws.title: pd.DataFrame(ws.get_all_records()) for ws in attendance_sheet.worksheets()}
+    scores = pd.DataFrame(scores_sheet.sheet1.get_all_records())
+    masterlist = pd.DataFrame(masterlist_sheet.sheet1.get_all_records())
+
     return attendance, scores, masterlist
+
 
 def main():
     st.set_page_config("CirQit Hackathon Dashboard", layout="wide")
@@ -78,13 +97,6 @@ def main():
                 st.experimental_rerun()
         else:
             st.info("Enter the correct password to access admin features.")
-
-    with st.expander("📤 Upload New Attendance Data"):
-        uploaded_file = st.file_uploader("Upload updated attendance Excel file", type=["xlsx"])
-        if uploaded_file:
-            with open("CirQit-TC-Attendance-AsOf-2025-08-23.xlsx", "wb") as f:
-                f.write(uploaded_file.read())
-            st.success("✅ File uploaded. Please refresh the page to see updated data.")
 
 if __name__ == "__main__":
     main()
