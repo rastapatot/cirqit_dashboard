@@ -910,6 +910,40 @@ def main():
                 except Exception as e:
                     st.error(f"❌ Error fixing team names: {str(e)}")
             
+            if st.button("🔍 Check Actual Google Sheets Attendance Data"):
+                try:
+                    attendance, scores, masterlist = load_data()
+                    
+                    st.write("**Available worksheets in Attendance Sheet:**")
+                    for sheet_name in attendance.keys():
+                        st.write(f"- {sheet_name}")
+                        if len(attendance[sheet_name]) > 0:
+                            st.write(f"  Rows: {len(attendance[sheet_name])}")
+                            st.write(f"  Columns: {list(attendance[sheet_name].columns)}")
+                            st.write("  Sample data:")
+                            st.dataframe(attendance[sheet_name].head(3))
+                        else:
+                            st.write("  (Empty)")
+                        st.write("---")
+                    
+                    # Check if we have Celine's data specifically
+                    st.write("**Looking for Celine Keisja Nebrija in attendance data:**")
+                    found_celine = False
+                    for sheet_name, sheet_data in attendance.items():
+                        if len(sheet_data) > 0 and 'Member Name' in sheet_data.columns:
+                            celine_data = sheet_data[sheet_data['Member Name'].str.contains('Celine', na=False, case=False)]
+                            if len(celine_data) > 0:
+                                st.write(f"Found in {sheet_name}:")
+                                st.dataframe(celine_data)
+                                found_celine = True
+                    
+                    if not found_celine:
+                        st.error("❌ Celine not found in any attendance worksheets!")
+                        st.write("This explains why she shows 0 points - her actual attendance isn't recorded in the individual data.")
+                        
+                except Exception as e:
+                    st.error(f"Error checking attendance data: {str(e)}")
+            
             if st.button("🔍 Explore All Sheets for Individual Data"):
                 try:
                     import gspread
