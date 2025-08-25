@@ -75,10 +75,11 @@ def main():
     bonus_df = get_bonus_points()
 
     scores = scores.merge(bonus_df, how="left", left_on="Team Name", right_on="team_name")
-    scores["Total Score (with Bonus)"] = scores["Total_Score"] + scores["Bonus_Points"]
+scores.rename(columns={"bonus": "Bonus_Points"}, inplace=True)
+    scores["Total Score (with Bonus)"] = scores["Total_Score"] + scores["bonus"]
 
     st.subheader("📊 Team Performance Overview")
-    st.dataframe(scores[["Team Name", "Total_Score", "Bonus_Points", "Average_Score_Per_Event", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
+    st.dataframe(scores[["Team Name", "Total_Score", "bonus", "Total Score (with Bonus)", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
 
     st.subheader("🔍 Team Explorer")
     selected_team = st.selectbox("Select a team", scores["Team Name"].dropna().unique())
@@ -87,18 +88,7 @@ def main():
     st.table(team_info[["Member Name", "Member Department"]])
     st.write("**Coach:**", team_info["Coach/Consultant"].iloc[0])
 
-    
-
-st.subheader("🔎 Coach Search")
-search_coach = st.text_input("Search for a coach by name")
-if search_coach:
-    coach_teams = masterlist[masterlist["Coach/Consultant"].str.contains(search_coach, case=False, na=False)]
-    coach_team_names = coach_teams["Team Name"].dropna().unique()
-    coach_scores = scores[scores["Team Name"].isin(coach_team_names)]
-    st.write(f"**Performance Summary for Coach: {search_coach}**")
-    st.dataframe(coach_scores[["Team Name", "Total_Score", "Bonus_Points", "Average_Score_Per_Event", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
-
-with st.expander("🔐 Admin Panel: Award Bonus Points"):
+    with st.expander("🔐 Admin Panel: Award Bonus Points"):
         password = st.text_input("Enter admin password", type="password")
         if password == ADMIN_PASSWORD:
             team_to_award = st.selectbox("Select team to award +1 bonus", scores["Team Name"].dropna().unique())
