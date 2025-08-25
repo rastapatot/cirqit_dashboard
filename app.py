@@ -290,51 +290,6 @@ def get_individual_member_scores():
                 continue  # Try next configuration
         
         
-        # TEMPORARY: If no individual data found, create estimated individual scores from team aggregates
-        st.warning("⚠️ Individual member attendance data not found. Using estimated scores based on team totals.")
-        try:
-            # Use the existing scores data to estimate individual contributions
-            scores_sheet = gc.open_by_key("1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo")
-            scores_data = pd.DataFrame(scores_sheet.sheet1.get_all_records())
-            
-            # Get masterlist to know team members
-            masterlist_sheet = gc.open_by_key("1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc")
-            masterlist_data = pd.DataFrame(masterlist_sheet.sheet1.get_all_records())
-            
-            estimated_scores = []
-            for _, team_row in scores_data.iterrows():
-                team_name = team_row.get('Team Name', '')
-                total_member_points = team_row.get('Total_Member_Points', 0)
-                
-                # Get team members from masterlist
-                team_members = masterlist_data[masterlist_data['Team Name'] == team_name]
-                num_members = len(team_members)
-                
-                if num_members > 0 and total_member_points > 0:
-                    # Distribute points evenly among members (temporary solution)
-                    points_per_member = total_member_points / num_members
-                    
-                    for _, member_row in team_members.iterrows():
-                        estimated_scores.append({
-                            'Team': team_name,
-                            'Member Name': member_row.get('Member Name', ''),
-                            'Points Earned': round(points_per_member, 1)
-                        })
-                elif num_members > 0:
-                    # No points for this team
-                    for _, member_row in team_members.iterrows():
-                        estimated_scores.append({
-                            'Team': team_name,
-                            'Member Name': member_row.get('Member Name', ''),
-                            'Points Earned': 0
-                        })
-            
-            if estimated_scores:
-                return pd.DataFrame(estimated_scores)
-        except Exception as e:
-            st.error(f"Could not create estimated scores: {str(e)}")
-        
-        st.error("❌ Could not load individual member scores from any source")
         return pd.DataFrame()
         
     except Exception as e:
