@@ -563,17 +563,21 @@ def main():
         coach_name = team_info["Coach/Consultant"].iloc[0] if len(team_info) > 0 else ""
         coach_dept = "Coach"
         if len(team_info) > 0 and "Coach Department" in team_info.columns:
-            coach_dept = team_info["Coach Department"].iloc[0] if pd.notna(team_info["Coach Department"].iloc[0]) else "Coach"
+            dept_value = team_info["Coach Department"].iloc[0]
+            coach_dept = dept_value if dept_value and str(dept_value) != 'nan' else "Coach"
         
         # Get coach individual score
         coach_points = 0
-        if len(individual_coach_scores) > 0:
-            coach_score_data = individual_coach_scores[
-                (individual_coach_scores["Team"] == selected_team) & 
-                (individual_coach_scores["Coach Name"] == coach_name)
-            ]
-            if len(coach_score_data) > 0:
-                coach_points = coach_score_data.iloc[0]["Points Earned"]
+        try:
+            if len(individual_coach_scores) > 0:
+                coach_score_data = individual_coach_scores[
+                    (individual_coach_scores["Team"] == selected_team) & 
+                    (individual_coach_scores["Coach Name"] == coach_name)
+                ]
+                if len(coach_score_data) > 0:
+                    coach_points = coach_score_data.iloc[0]["Points Earned"]
+        except:
+            coach_points = 0
         
         # Create coach entry
         coach_entry = pd.DataFrame({
@@ -660,15 +664,19 @@ def main():
                 # Get coach info and score for this team
                 coach_dept = "Coach"
                 if len(team_members) > 0 and "Member Department" in team_members.columns:
-                    coach_dept = team_members.iloc[0]["Member Department"] if pd.notna(team_members.iloc[0]["Member Department"]) else "Coach"
+                    dept_value = team_members.iloc[0]["Member Department"]
+                    coach_dept = dept_value if dept_value and str(dept_value) != 'nan' else "Coach"
                 coach_points = 0
-                if len(individual_coach_scores) > 0:
-                    coach_score_data = individual_coach_scores[
-                        (individual_coach_scores["Team"] == team) & 
-                        (individual_coach_scores["Coach Name"] == selected_coach)
-                    ]
-                    if len(coach_score_data) > 0:
-                        coach_points = coach_score_data.iloc[0]["Points Earned"]
+                try:
+                    if len(individual_coach_scores) > 0:
+                        coach_score_data = individual_coach_scores[
+                            (individual_coach_scores["Team"] == team) & 
+                            (individual_coach_scores["Coach Name"] == selected_coach)
+                        ]
+                        if len(coach_score_data) > 0:
+                            coach_points = coach_score_data.iloc[0]["Points Earned"]
+                except:
+                    coach_points = 0
                 
                 # Create coach entry
                 coach_entry = pd.DataFrame({
@@ -697,10 +705,13 @@ def main():
             
             # Get coach individual score across all teams
             coach_total_points = 0
-            if len(individual_coach_scores) > 0:
-                coach_all_scores = individual_coach_scores[individual_coach_scores["Coach Name"] == selected_coach]
-                if len(coach_all_scores) > 0:
-                    coach_total_points = coach_all_scores["Points Earned"].sum()
+            try:
+                if len(individual_coach_scores) > 0:
+                    coach_all_scores = individual_coach_scores[individual_coach_scores["Coach Name"] == selected_coach]
+                    if len(coach_all_scores) > 0:
+                        coach_total_points = coach_all_scores["Points Earned"].sum()
+            except:
+                coach_total_points = 0
             
             # Create coach entry for all members view
             coach_entry = pd.DataFrame({
