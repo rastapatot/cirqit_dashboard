@@ -1007,6 +1007,56 @@ def main():
                 except Exception as e:
                     st.error(f"Error checking attendance data: {str(e)}")
             
+            if st.button("🔧 Fix Missing Attendance Records"):
+                try:
+                    attendance, scores, masterlist = load_data()
+                    
+                    # Find members who should have attendance but don't
+                    st.write("**Checking Alliance of Just Minds members specifically:**")
+                    alliance_members = masterlist[masterlist['Team Name'].str.contains('Alliance', na=False)]
+                    
+                    for _, member_row in alliance_members.iterrows():
+                        member_name = member_row['Member Name']
+                        team_name = member_row['Team Name']
+                        
+                        # Check if this member has attendance records
+                        found_attendance = False
+                        total_points = 0
+                        
+                        for sheet_name, sheet_data in attendance.items():
+                            if len(sheet_data) > 0 and 'Member Name' in sheet_data.columns:
+                                member_records = sheet_data[sheet_data['Member Name'].str.contains(member_name.split()[0], na=False, case=False)]
+                                if len(member_records) > 0:
+                                    found_attendance = True
+                                    if 'Points Earned' in member_records.columns:
+                                        total_points = member_records['Points Earned'].sum()
+                                    break
+                        
+                        status = f"✅ {total_points} points" if found_attendance else "❌ Missing"
+                        st.write(f"- {member_name}: {status}")
+                    
+                    # According to your raw data, Alliance members should have:
+                    # ADAM: 4 attended, N8N: 3 attended, Claude: 2 attended
+                    alliance_attendance_data = [
+                        {"name": "Jovan Beato", "sessions": ["ADAM", "N8N"]},  # First 2 sessions
+                        {"name": "Anthony John Matiling", "sessions": ["ADAM", "N8N"]},  # First 2 sessions  
+                        {"name": "Mariel Peñaflor", "sessions": ["ADAM"]},  # First session only
+                        {"name": "Christopher Lizada", "sessions": ["ADAM"]},  # First session only
+                        {"name": "Celine Keisja Nebrija", "sessions": ["ADAM", "N8N", "Claude"]},  # All 3 sessions per your check
+                    ]
+                    
+                    st.write("**Expected attendance based on your raw data verification:**")
+                    for member_data in alliance_attendance_data:
+                        sessions_str = ", ".join(member_data["sessions"])
+                        points = len(member_data["sessions"])
+                        st.write(f"- {member_data['name']}: {sessions_str} = {points} points")
+                    
+                    if st.button("📝 Update Alliance Attendance Records"):
+                        st.warning("This would update the Google Sheets with correct attendance data. Implement if needed.")
+                        
+                except Exception as e:
+                    st.error(f"Error checking attendance: {str(e)}")
+            
             if st.button("🔍 Explore All Sheets for Individual Data"):
                 try:
                     import gspread
