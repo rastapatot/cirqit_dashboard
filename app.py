@@ -298,9 +298,15 @@ def calculate_individual_scores_from_team_data(scores_df, masterlist_df):
         # Handle team name variations (like "Alliance of Just Minds" vs "Alliance of Just Minds(AJM)")
         team_info = masterlist_df[masterlist_df['Team Name'] == team_name]
         if len(team_info) == 0:
-            # Try to find team with similar name (remove parentheses)
+            # Try to find team with similar name (remove parentheses and match both directions)
             clean_team_name = team_name.split('(')[0].strip()
-            team_info = masterlist_df[masterlist_df['Team Name'].str.contains(clean_team_name, na=False, regex=False)]
+            # Search for masterlist teams that start with the clean name
+            team_info = masterlist_df[masterlist_df['Team Name'].str.startswith(clean_team_name, na=False)]
+            if len(team_info) == 0:
+                # Also try the reverse - clean masterlist names and match with score team name
+                masterlist_clean = masterlist_df.copy()
+                masterlist_clean['Clean_Name'] = masterlist_clean['Team Name'].str.split('(').str[0].str.strip()
+                team_info = masterlist_clean[masterlist_clean['Clean_Name'] == clean_team_name]
         if len(team_info) == 0:
             continue
             
@@ -358,9 +364,15 @@ def calculate_individual_coach_scores_from_team_data(scores_df, masterlist_df):
         # Handle team name variations (like "Alliance of Just Minds" vs "Alliance of Just Minds(AJM)")
         team_info = masterlist_df[masterlist_df['Team Name'] == team_name]
         if len(team_info) == 0:
-            # Try to find team with similar name (remove parentheses)
+            # Try to find team with similar name (remove parentheses and match both directions)
             clean_team_name = team_name.split('(')[0].strip()
-            team_info = masterlist_df[masterlist_df['Team Name'].str.contains(clean_team_name, na=False, regex=False)]
+            # Search for masterlist teams that start with the clean name
+            team_info = masterlist_df[masterlist_df['Team Name'].str.startswith(clean_team_name, na=False)]
+            if len(team_info) == 0:
+                # Also try the reverse - clean masterlist names and match with score team name
+                masterlist_clean = masterlist_df.copy()
+                masterlist_clean['Clean_Name'] = masterlist_clean['Team Name'].str.split('(').str[0].str.strip()
+                team_info = masterlist_clean[masterlist_clean['Clean_Name'] == clean_team_name]
         if len(team_info) == 0:
             continue
             
