@@ -286,6 +286,50 @@ def get_individual_member_scores():
                 continue  # Try next configuration
         
         
+        # TEMPORARY: If no individual data found, create estimated individual scores from team aggregates
+        st.warning("⚠️ Individual member attendance data not found. Using estimated scores based on team totals.")
+        try:
+            # Use the existing scores data to estimate individual contributions
+            scores_sheet = gc.open_by_key("1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo")
+            scores_data = pd.DataFrame(scores_sheet.sheet1.get_all_records())
+            
+            # Get masterlist to know team members
+            masterlist_sheet = gc.open_by_key("1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc")
+            masterlist_data = pd.DataFrame(masterlist_sheet.sheet1.get_all_records())
+            
+            estimated_scores = []
+            for _, team_row in scores_data.iterrows():
+                team_name = team_row.get('Team Name', '')
+                total_member_points = team_row.get('Total_Member_Points', 0)
+                
+                # Get team members from masterlist
+                team_members = masterlist_data[masterlist_data['Team Name'] == team_name]
+                num_members = len(team_members)
+                
+                if num_members > 0 and total_member_points > 0:
+                    # Distribute points evenly among members (temporary solution)
+                    points_per_member = total_member_points / num_members
+                    
+                    for _, member_row in team_members.iterrows():
+                        estimated_scores.append({
+                            'Team': team_name,
+                            'Member Name': member_row.get('Member Name', ''),
+                            'Points Earned': round(points_per_member, 1)
+                        })
+                elif num_members > 0:
+                    # No points for this team
+                    for _, member_row in team_members.iterrows():
+                        estimated_scores.append({
+                            'Team': team_name,
+                            'Member Name': member_row.get('Member Name', ''),
+                            'Points Earned': 0
+                        })
+            
+            if estimated_scores:
+                return pd.DataFrame(estimated_scores)
+        except Exception as e:
+            st.error(f"Could not create estimated scores: {str(e)}")
+        
         st.error("❌ Could not load individual member scores from any source")
         return pd.DataFrame()
         
@@ -394,6 +438,38 @@ def get_individual_coach_scores():
             except Exception as e:
                 continue  # Try next configuration
         
+        
+        # TEMPORARY: If no individual coach data found, create estimated scores from team aggregates  
+        st.warning("⚠️ Individual coach attendance data not found. Using estimated scores based on team totals.")
+        try:
+            # Use the existing scores data to estimate coach contributions
+            scores_sheet = gc.open_by_key("1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo")
+            scores_data = pd.DataFrame(scores_sheet.sheet1.get_all_records())
+            
+            # Get masterlist to know team coaches
+            masterlist_sheet = gc.open_by_key("1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc")
+            masterlist_data = pd.DataFrame(masterlist_sheet.sheet1.get_all_records())
+            
+            estimated_coach_scores = []
+            for _, team_row in scores_data.iterrows():
+                team_name = team_row.get('Team Name', '')
+                total_coach_points = team_row.get('Total_Coach_Points', 0)
+                
+                # Get team coach from masterlist
+                team_info = masterlist_data[masterlist_data['Team Name'] == team_name]
+                if len(team_info) > 0:
+                    coach_name = team_info.iloc[0].get('Coach/Consultant', '')
+                    if coach_name:
+                        estimated_coach_scores.append({
+                            'Team': team_name,
+                            'Coach Name': coach_name,
+                            'Points Earned': total_coach_points
+                        })
+            
+            if estimated_coach_scores:
+                return pd.DataFrame(estimated_coach_scores)
+        except Exception as e:
+            st.error(f"Could not create estimated coach scores: {str(e)}")
         
         return pd.DataFrame()
         
@@ -705,7 +781,7 @@ def main():
                         st.error("**❌ No individual scores loaded**")
                         st.write("Click 'Diagnose Google Sheets Access' to see what needs to be fixed.")
             
-            if st.button("🔍 Explore Attendance Sheet Structure"):
+            if st.button("🔍 Explore All Sheets for Individual Data"):
                 try:
                     import gspread
                     from google.oauth2.service_account import Credentials
@@ -716,42 +792,61 @@ def main():
                     credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
                     gc = gspread.authorize(credentials)
                     
-                    # Open attendance sheet
-                    attendance_sheet = gc.open_by_key("1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8")
+                    sheets_to_explore = [
+                        {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Attendance Sheet"},
+                        {"id": "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo", "name": "Scores Sheet"},
+                        {"id": "1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc", "name": "Masterlist Sheet"},
+                    ]
                     
-                    st.write("**Attendance Sheet Analysis:**")
-                    
-                    for ws in attendance_sheet.worksheets():
-                        st.write(f"**Worksheet: {ws.title}**")
+                    for sheet_info in sheets_to_explore:
                         try:
-                            # Get first few rows to understand structure
-                            data = ws.get_all_records()
-                            if len(data) > 0:
-                                df = pd.DataFrame(data)
-                                st.write(f"Rows: {len(df)}, Columns: {len(df.columns)}")
-                                st.write(f"Column names: {df.columns.tolist()}")
-                                st.write("Sample data:")
-                                st.dataframe(df.head(5))
-                                
-                                # Check if this looks like member or coach data
-                                has_member_name = any('member' in col.lower() for col in df.columns)
-                                has_coach_name = any('coach' in col.lower() for col in df.columns)
-                                has_points = any('point' in col.lower() for col in df.columns)
-                                has_team = any('team' in col.lower() for col in df.columns)
-                                
-                                st.write(f"Data indicators:")
-                                st.write(f"• Has member names: {'✅' if has_member_name else '❌'}")
-                                st.write(f"• Has coach names: {'✅' if has_coach_name else '❌'}")
-                                st.write(f"• Has points: {'✅' if has_points else '❌'}")
-                                st.write(f"• Has teams: {'✅' if has_team else '❌'}")
-                            else:
-                                st.write("No data found in this worksheet")
+                            st.write(f"## 📋 {sheet_info['name']}")
+                            sheet = gc.open_by_key(sheet_info["id"])
+                            
+                            for ws in sheet.worksheets():
+                                st.write(f"**Worksheet: {ws.title}**")
+                                try:
+                                    # Get first few rows to understand structure
+                                    data = ws.get_all_records()
+                                    if len(data) > 0:
+                                        df = pd.DataFrame(data)
+                                        st.write(f"Rows: {len(df)}, Columns: {len(df.columns)}")
+                                        st.write(f"Column names: {df.columns.tolist()}")
+                                        
+                                        # Check if this looks like individual member or coach data
+                                        has_individual_member = any('member name' in col.lower() for col in df.columns)
+                                        has_individual_coach = any('coach name' in col.lower() for col in df.columns)
+                                        has_points_earned = any('points earned' in col.lower() for col in df.columns)
+                                        has_session = any('session' in col.lower() for col in df.columns)
+                                        has_attendance_data = has_individual_member or has_individual_coach
+                                        
+                                        st.write(f"**Data Type Analysis:**")
+                                        if has_attendance_data and has_points_earned:
+                                            st.success("🎯 This looks like INDIVIDUAL attendance data!")
+                                        elif 'Total_' in str(df.columns):
+                                            st.info("📊 This looks like AGGREGATED team data")
+                                        else:
+                                            st.write("🔍 Unknown data type")
+                                        
+                                        st.write(f"• Individual member names: {'✅' if has_individual_member else '❌'}")
+                                        st.write(f"• Individual coach names: {'✅' if has_individual_coach else '❌'}")
+                                        st.write(f"• Points earned: {'✅' if has_points_earned else '❌'}")
+                                        st.write(f"• Session data: {'✅' if has_session else '❌'}")
+                                        
+                                        if has_attendance_data:
+                                            st.write("Sample data:")
+                                            st.dataframe(df.head(3))
+                                    else:
+                                        st.write("No data found in this worksheet")
+                                except Exception as e:
+                                    st.error(f"Error reading {ws.title}: {str(e)}")
+                                st.write("---")
                         except Exception as e:
-                            st.error(f"Error reading {ws.title}: {str(e)}")
-                        st.write("---")
+                            st.error(f"Error accessing {sheet_info['name']}: {str(e)}")
+                        st.write("=" * 50)
                         
                 except Exception as e:
-                    st.error(f"Error exploring attendance sheet: {str(e)}")
+                    st.error(f"Error exploring sheets: {str(e)}")
             
         else:
             st.info("Enter the correct password to access admin features.")
