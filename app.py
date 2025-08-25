@@ -1087,16 +1087,35 @@ def main():
                                 
                                 # Update Celine's records specifically
                                 updates_made = 0
+                                
+                                # First, let's see what we're working with
+                                st.write("**Current Celine records before update:**")
+                                celine_records = [r for r in all_records if 'Celine' in str(r.get('Member Name', ''))]
+                                for record in celine_records:
+                                    session = record.get('Session', 'Unknown')
+                                    points = record.get('Points Earned', 0)
+                                    st.write(f"- {session}: {points} points")
+                                
+                                # Update each of Celine's records
                                 for i, record in enumerate(all_records):
                                     if 'Celine' in str(record.get('Member Name', '')):
-                                        # Update her points to 1 for each session she attended
                                         row_num = i + 2  # +2 because headers are row 1, records start at row 2
                                         
-                                        # Set Points Earned to 1 if it's currently 0
+                                        # Get current session info
+                                        session = record.get('Session', '')
                                         current_points = record.get('Points Earned', 0)
+                                        
+                                        # Update all her sessions to 1 point (she attended all 3)
                                         if current_points == 0:
-                                            member_ws.update_cell(row_num, member_ws.find('Points Earned').col, 1)
-                                            updates_made += 1
+                                            try:
+                                                points_col = member_ws.find('Points Earned').col
+                                                member_ws.update_cell(row_num, points_col, 1)
+                                                updates_made += 1
+                                                st.write(f"✅ Updated {session}: 0 → 1 point")
+                                            except Exception as e:
+                                                st.error(f"❌ Failed to update {session}: {str(e)}")
+                                        else:
+                                            st.write(f"⏭️ Skipped {session}: already has {current_points} points")
                                 
                                 st.success(f"✅ Updated {updates_made} records for Celine")
                                 st.info("🔄 Please refresh the page to see updated scores")
