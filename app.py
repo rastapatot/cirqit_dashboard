@@ -123,12 +123,19 @@ def get_individual_member_scores():
         ATTENDANCE_SHEET_ID = "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8"
         attendance_sheet = gc.open_by_key(ATTENDANCE_SHEET_ID)
         
-        # Get Member Attendance worksheet
+        # Debug: List all available worksheets
+        worksheet_names = [ws.title for ws in attendance_sheet.worksheets()]
+        
+        # Get Member Attendance worksheet - try exact name first
         member_attendance_ws = None
-        for ws in attendance_sheet.worksheets():
-            if 'member' in ws.title.lower() and 'attendance' in ws.title.lower():
-                member_attendance_ws = ws
-                break
+        try:
+            member_attendance_ws = attendance_sheet.worksheet("Member Attendance")
+        except:
+            # Fallback to search pattern
+            for ws in attendance_sheet.worksheets():
+                if 'member' in ws.title.lower() and 'attendance' in ws.title.lower():
+                    member_attendance_ws = ws
+                    break
         
         if member_attendance_ws:
             member_data = pd.DataFrame(member_attendance_ws.get_all_records())
@@ -136,6 +143,11 @@ def get_individual_member_scores():
                 # Calculate individual member scores
                 individual_scores = member_data.groupby(['Team', 'Member Name'])['Points Earned'].sum().reset_index()
                 return individual_scores
+            else:
+                st.error(f"Member Attendance sheet found but no valid data. Columns: {member_data.columns.tolist() if len(member_data) > 0 else 'No data'}")
+        else:
+            st.error(f"Member Attendance worksheet not found. Available sheets: {worksheet_names}")
+        
         return pd.DataFrame()
     except Exception as e:
         st.error(f"Error loading individual member scores: {str(e)}")
@@ -156,12 +168,16 @@ def get_individual_coach_scores():
         ATTENDANCE_SHEET_ID = "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8"
         attendance_sheet = gc.open_by_key(ATTENDANCE_SHEET_ID)
         
-        # Get Coach Attendance worksheet
+        # Get Coach Attendance worksheet - try exact name first
         coach_attendance_ws = None
-        for ws in attendance_sheet.worksheets():
-            if 'coach' in ws.title.lower() and 'attendance' in ws.title.lower():
-                coach_attendance_ws = ws
-                break
+        try:
+            coach_attendance_ws = attendance_sheet.worksheet("Coach Attendance")
+        except:
+            # Fallback to search pattern
+            for ws in attendance_sheet.worksheets():
+                if 'coach' in ws.title.lower() and 'attendance' in ws.title.lower():
+                    coach_attendance_ws = ws
+                    break
         
         if coach_attendance_ws:
             coach_data = pd.DataFrame(coach_attendance_ws.get_all_records())
