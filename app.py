@@ -926,20 +926,51 @@ def main():
                             st.write("  (Empty)")
                         st.write("---")
                     
-                    # Check if we have Celine's data specifically
-                    st.write("**Looking for Celine Keisja Nebrija in attendance data:**")
-                    found_celine = False
+                    # Check attendance data completeness for ALL members
+                    st.write("**Analyzing Individual Attendance Data Completeness:**")
+                    
+                    # Get all team members from masterlist
+                    all_members = set(masterlist['Member Name'].dropna().unique())
+                    st.write(f"Total members in masterlist: {len(all_members)}")
+                    
+                    # Check which members have individual attendance records
+                    members_in_attendance = set()
                     for sheet_name, sheet_data in attendance.items():
                         if len(sheet_data) > 0 and 'Member Name' in sheet_data.columns:
-                            celine_data = sheet_data[sheet_data['Member Name'].str.contains('Celine', na=False, case=False)]
-                            if len(celine_data) > 0:
-                                st.write(f"Found in {sheet_name}:")
-                                st.dataframe(celine_data)
-                                found_celine = True
+                            members_in_attendance.update(sheet_data['Member Name'].dropna().unique())
                     
-                    if not found_celine:
-                        st.error("❌ Celine not found in any attendance worksheets!")
-                        st.write("This explains why she shows 0 points - her actual attendance isn't recorded in the individual data.")
+                    st.write(f"Members with individual attendance records: {len(members_in_attendance)}")
+                    
+                    # Find missing members
+                    missing_members = all_members - members_in_attendance
+                    if missing_members:
+                        st.error(f"❌ {len(missing_members)} members have NO individual attendance records:")
+                        st.write("This explains why they show incorrect scores - the system uses wrong 'first N members' logic instead of actual attendance.")
+                        
+                        # Show some examples
+                        sample_missing = list(missing_members)[:10]
+                        st.write("Examples of missing members:")
+                        for member in sample_missing:
+                            st.write(f"- {member}")
+                        if len(missing_members) > 10:
+                            st.write(f"... and {len(missing_members) - 10} more")
+                    else:
+                        st.success("✅ All members have individual attendance records!")
+                    
+                    # Check specific examples
+                    st.write("**Sample Member Attendance Check:**")
+                    test_members = ['Celine Keisja Nebrija', 'Jovan Beato', 'Anthony John Matiling']
+                    for member in test_members:
+                        found = False
+                        for sheet_name, sheet_data in attendance.items():
+                            if len(sheet_data) > 0 and 'Member Name' in sheet_data.columns:
+                                member_data = sheet_data[sheet_data['Member Name'].str.contains(member.split()[0], na=False, case=False)]
+                                if len(member_data) > 0:
+                                    st.write(f"✅ {member}: Found {len(member_data)} attendance records")
+                                    found = True
+                                    break
+                        if not found:
+                            st.write(f"❌ {member}: NO attendance records found")
                         
                 except Exception as e:
                     st.error(f"Error checking attendance data: {str(e)}")
