@@ -84,6 +84,44 @@ def fix_duplicate_alliance_teams():
         return True
     return False
 
+def check_sheet_permissions():
+    """Check and display information about sheet access"""
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+        
+        SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+        service_account_info = st.secrets["google"]
+        credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+        gc = gspread.authorize(credentials)
+        
+        sheets_to_check = [
+            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Attendance Sheet"},
+            {"id": "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo", "name": "Scores Sheet"},
+            {"id": "1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc", "name": "Masterlist Sheet"},
+        ]
+        
+        results = []
+        for sheet_info in sheets_to_check:
+            try:
+                sheet = gc.open_by_key(sheet_info["id"])
+                worksheets = [ws.title for ws in sheet.worksheets()]
+                results.append({
+                    "name": sheet_info["name"],
+                    "status": "✅ Accessible",
+                    "worksheets": worksheets
+                })
+            except Exception as e:
+                results.append({
+                    "name": sheet_info["name"],
+                    "status": f"❌ Error: {str(e)[:50]}...",
+                    "worksheets": []
+                })
+        
+        return results
+    except Exception as e:
+        return [{"name": "All Sheets", "status": f"❌ General Error: {str(e)}", "worksheets": []}]
+
 @st.cache_data
 def load_data():
     import gspread
@@ -110,6 +148,7 @@ def load_data():
 
 @st.cache_data
 def get_individual_member_scores():
+    """Load individual member scores with multiple fallback strategies"""
     try:
         import gspread
         from google.oauth2.service_account import Credentials
@@ -120,41 +159,90 @@ def get_individual_member_scores():
         credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
         gc = gspread.authorize(credentials)
         
-        ATTENDANCE_SHEET_ID = "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8"
-        attendance_sheet = gc.open_by_key(ATTENDANCE_SHEET_ID)
+        # Try multiple sheet IDs and strategies
+        sheet_configs = [
+            # Primary attendance sheet
+            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Member Attendance"},
+            # Fallback: same sheet, different worksheet names
+            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "member attendance"},
+            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Members"},
+            # Try the scores sheet (might have member data)
+            {"id": "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo", "name": "Member Attendance"},
+        ]
         
-        # Debug: List all available worksheets
-        worksheet_names = [ws.title for ws in attendance_sheet.worksheets()]
+        for config in sheet_configs:
+            try:
+                sheet = gc.open_by_key(config["id"])
+                worksheet_names = [ws.title for ws in sheet.worksheets()]
+                
+                # Try exact name match first
+                member_ws = None
+                try:
+                    member_ws = sheet.worksheet(config["name"])
+                except:
+                    # Try case-insensitive search
+                    for ws in sheet.worksheets():
+                        if config["name"].lower() in ws.title.lower():
+                            member_ws = ws
+                            break
+                    
+                    # Try pattern matching
+                    if not member_ws:
+                        for ws in sheet.worksheets():
+                            title_lower = ws.title.lower()
+                            if 'member' in title_lower and ('attendance' in title_lower or 'attend' in title_lower):
+                                member_ws = ws
+                                break
+                
+                if member_ws:
+                    member_data = pd.DataFrame(member_ws.get_all_records())
+                    if len(member_data) > 0:
+                        # Try different column name variations
+                        points_col = None
+                        for col in member_data.columns:
+                            if 'points' in col.lower() and 'earned' in col.lower():
+                                points_col = col
+                                break
+                        
+                        if not points_col:
+                            for col in member_data.columns:
+                                if 'points' in col.lower():
+                                    points_col = col
+                                    break
+                        
+                        if points_col and 'Team' in member_data.columns and 'Member Name' in member_data.columns:
+                            # Convert points to numeric, handling strings
+                            member_data[points_col] = pd.to_numeric(member_data[points_col], errors='coerce').fillna(0)
+                            individual_scores = member_data.groupby(['Team', 'Member Name'])[points_col].sum().reset_index()
+                            individual_scores.rename(columns={points_col: 'Points Earned'}, inplace=True)
+                            return individual_scores
+                        elif points_col:
+                            st.warning(f"Found member data but missing required columns. Available: {member_data.columns.tolist()}")
+                
+            except Exception as e:
+                continue  # Try next configuration
         
-        # Get Member Attendance worksheet - try exact name first
-        member_attendance_ws = None
+        # If all else fails, try to load from local Excel file as backup
         try:
-            member_attendance_ws = attendance_sheet.worksheet("Member Attendance")
-        except:
-            # Fallback to search pattern
-            for ws in attendance_sheet.worksheets():
-                if 'member' in ws.title.lower() and 'attendance' in ws.title.lower():
-                    member_attendance_ws = ws
-                    break
-        
-        if member_attendance_ws:
-            member_data = pd.DataFrame(member_attendance_ws.get_all_records())
-            if len(member_data) > 0 and 'Points Earned' in member_data.columns:
-                # Calculate individual member scores
-                individual_scores = member_data.groupby(['Team', 'Member Name'])['Points Earned'].sum().reset_index()
+            member_df = pd.read_excel('CirQit-TC-Attendance-AsOf-2025-08-23.xlsx', sheet_name='Member Attendance')
+            if len(member_df) > 0 and 'Points Earned' in member_df.columns:
+                member_df['Points Earned'] = pd.to_numeric(member_df['Points Earned'], errors='coerce').fillna(0)
+                individual_scores = member_df.groupby(['Team', 'Member Name'])['Points Earned'].sum().reset_index()
+                st.info("🔄 Using local Excel file for member scores (Google Sheets unavailable)")
                 return individual_scores
-            else:
-                st.error(f"Member Attendance sheet found but no valid data. Columns: {member_data.columns.tolist() if len(member_data) > 0 else 'No data'}")
-        else:
-            st.error(f"Member Attendance worksheet not found. Available sheets: {worksheet_names}")
+        except:
+            pass
         
+        st.error("❌ Could not load individual member scores from any source")
         return pd.DataFrame()
+        
     except Exception as e:
-        st.error(f"Error loading individual member scores: {str(e)}")
+        st.error(f"❌ Error loading individual member scores: {str(e)}")
         return pd.DataFrame()
 
 @st.cache_data  
 def get_individual_coach_scores():
+    """Load individual coach scores with multiple fallback strategies"""
     try:
         import gspread
         from google.oauth2.service_account import Credentials
@@ -165,29 +253,94 @@ def get_individual_coach_scores():
         credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
         gc = gspread.authorize(credentials)
         
-        ATTENDANCE_SHEET_ID = "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8"
-        attendance_sheet = gc.open_by_key(ATTENDANCE_SHEET_ID)
+        # Try multiple sheet IDs and strategies
+        sheet_configs = [
+            # Primary attendance sheet
+            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Coach Attendance"},
+            # Fallback: same sheet, different worksheet names
+            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "coach attendance"},
+            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Coaches"},
+            # Try the scores sheet (might have coach data)
+            {"id": "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo", "name": "Coach Attendance"},
+        ]
         
-        # Get Coach Attendance worksheet - try exact name first
-        coach_attendance_ws = None
+        for config in sheet_configs:
+            try:
+                sheet = gc.open_by_key(config["id"])
+                
+                # Try exact name match first
+                coach_ws = None
+                try:
+                    coach_ws = sheet.worksheet(config["name"])
+                except:
+                    # Try case-insensitive search
+                    for ws in sheet.worksheets():
+                        if config["name"].lower() in ws.title.lower():
+                            coach_ws = ws
+                            break
+                    
+                    # Try pattern matching
+                    if not coach_ws:
+                        for ws in sheet.worksheets():
+                            title_lower = ws.title.lower()
+                            if 'coach' in title_lower and ('attendance' in title_lower or 'attend' in title_lower):
+                                coach_ws = ws
+                                break
+                
+                if coach_ws:
+                    coach_data = pd.DataFrame(coach_ws.get_all_records())
+                    if len(coach_data) > 0:
+                        # Try different column name variations
+                        points_col = None
+                        for col in coach_data.columns:
+                            if 'points' in col.lower() and 'earned' in col.lower():
+                                points_col = col
+                                break
+                        
+                        if not points_col:
+                            for col in coach_data.columns:
+                                if 'points' in col.lower():
+                                    points_col = col
+                                    break
+                        
+                        # Try different coach name column variations
+                        coach_name_col = None
+                        for col in coach_data.columns:
+                            if 'coach' in col.lower() and 'name' in col.lower():
+                                coach_name_col = col
+                                break
+                        
+                        if not coach_name_col:
+                            for col in coach_data.columns:
+                                if 'coach' in col.lower():
+                                    coach_name_col = col
+                                    break
+                        
+                        if points_col and 'Team' in coach_data.columns and coach_name_col:
+                            # Convert points to numeric, handling strings
+                            coach_data[points_col] = pd.to_numeric(coach_data[points_col], errors='coerce').fillna(0)
+                            individual_coach_scores = coach_data.groupby(['Team', coach_name_col])[points_col].sum().reset_index()
+                            individual_coach_scores.rename(columns={points_col: 'Points Earned', coach_name_col: 'Coach Name'}, inplace=True)
+                            return individual_coach_scores
+                
+            except Exception as e:
+                continue  # Try next configuration
+        
+        # If all else fails, try to load from local Excel file as backup
         try:
-            coach_attendance_ws = attendance_sheet.worksheet("Coach Attendance")
-        except:
-            # Fallback to search pattern
-            for ws in attendance_sheet.worksheets():
-                if 'coach' in ws.title.lower() and 'attendance' in ws.title.lower():
-                    coach_attendance_ws = ws
-                    break
-        
-        if coach_attendance_ws:
-            coach_data = pd.DataFrame(coach_attendance_ws.get_all_records())
-            if len(coach_data) > 0 and 'Points Earned' in coach_data.columns:
-                # Calculate individual coach scores
-                individual_coach_scores = coach_data.groupby(['Team', 'Coach Name'])['Points Earned'].sum().reset_index()
+            coach_df = pd.read_excel('CirQit-TC-Attendance-AsOf-2025-08-23.xlsx', sheet_name='Coach Attendance')
+            if len(coach_df) > 0 and 'Points Earned' in coach_df.columns:
+                coach_df['Points Earned'] = pd.to_numeric(coach_df['Points Earned'], errors='coerce').fillna(0)
+                individual_coach_scores = coach_df.groupby(['Team', 'Coach Name'])['Points Earned'].sum().reset_index()
+                st.info("🔄 Using local Excel file for coach scores (Google Sheets unavailable)")
                 return individual_coach_scores
+        except:
+            pass
+        
         return pd.DataFrame()
+        
     except Exception as e:
-        st.error(f"Error loading individual coach scores: {str(e)}")
+        st.error(f"❌ Error loading individual coach scores: {str(e)}")
         return pd.DataFrame()
 def main():
     st.set_page_config("CirQit Hackathon Dashboard", layout="wide")
@@ -453,12 +606,29 @@ def main():
             st.write(f"Individual member scores loaded: {len(individual_scores)} records")
             st.write(f"Individual coach scores loaded: {len(individual_coach_scores)} records")
             if len(individual_scores) > 0:
-                st.write(f"Teams with individual data: {individual_scores['Team'].nunique()}")
-            if st.button("Show Sample Individual Scores"):
-                if len(individual_scores) > 0:
-                    st.dataframe(individual_scores.head(10))
-                else:
-                    st.error("No individual scores loaded")
+                st.write(f"Teams with individual member data: {individual_scores['Team'].nunique()}")
+            if len(individual_coach_scores) > 0:
+                st.write(f"Teams with individual coach data: {individual_coach_scores['Team'].nunique()}")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Check Google Sheets Access"):
+                    results = check_sheet_permissions()
+                    for result in results:
+                        st.write(f"**{result['name']}**: {result['status']}")
+                        if result['worksheets']:
+                            st.write(f"Worksheets: {', '.join(result['worksheets'])}")
+            
+            with col2:
+                if st.button("Show Sample Individual Scores"):
+                    if len(individual_scores) > 0:
+                        st.write("**Member Scores Sample:**")
+                        st.dataframe(individual_scores.head(10))
+                    if len(individual_coach_scores) > 0:
+                        st.write("**Coach Scores Sample:**")
+                        st.dataframe(individual_coach_scores.head(10))
+                    if len(individual_scores) == 0 and len(individual_coach_scores) == 0:
+                        st.error("No individual scores loaded from any source")
             
         else:
             st.info("Enter the correct password to access admin features.")
