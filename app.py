@@ -1052,7 +1052,51 @@ def main():
                         st.write(f"- {member_data['name']}: {sessions_str} = {points} points")
                     
                     if st.button("📝 Update Alliance Attendance Records"):
-                        st.warning("This would update the Google Sheets with correct attendance data. Implement if needed.")
+                        try:
+                            import gspread
+                            from google.oauth2.service_account import Credentials
+                            
+                            SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+                            service_account_info = st.secrets["google"]
+                            credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+                            gc = gspread.authorize(credentials)
+                            
+                            ATTENDANCE_SHEET_ID = "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8"
+                            attendance_sheet = gc.open_by_key(ATTENDANCE_SHEET_ID)
+                            
+                            # Find the Member Attendance worksheet
+                            member_ws = None
+                            for ws in attendance_sheet.worksheets():
+                                if 'member' in ws.title.lower() and 'attendance' in ws.title.lower():
+                                    member_ws = ws
+                                    break
+                            
+                            if member_ws:
+                                # Get all attendance data
+                                all_records = member_ws.get_all_records()
+                                
+                                # Update Celine's records specifically
+                                updates_made = 0
+                                for i, record in enumerate(all_records):
+                                    if 'Celine' in str(record.get('Member Name', '')):
+                                        # Update her points to 1 for each session she attended
+                                        row_num = i + 2  # +2 because headers are row 1, records start at row 2
+                                        
+                                        # Set Points Earned to 1 if it's currently 0
+                                        current_points = record.get('Points Earned', 0)
+                                        if current_points == 0:
+                                            member_ws.update_cell(row_num, member_ws.find('Points Earned').col, 1)
+                                            updates_made += 1
+                                
+                                st.success(f"✅ Updated {updates_made} records for Celine")
+                                st.info("🔄 Please refresh the page to see updated scores")
+                                st.cache_data.clear()
+                                
+                            else:
+                                st.error("❌ Could not find Member Attendance worksheet")
+                                
+                        except Exception as e:
+                            st.error(f"❌ Error updating attendance: {str(e)}")
                         
                 except Exception as e:
                     st.error(f"Error checking attendance: {str(e)}")
