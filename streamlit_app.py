@@ -1,6 +1,7 @@
 """
-CirQit Hackathon Dashboard - Production Application
+CirQit Hackathon Dashboard - Production Application v2.0
 Accurate scoring system with proper database backend
+Fixed admin password handling for Streamlit Cloud deployment
 """
 
 import streamlit as st
@@ -12,11 +13,12 @@ from database import DatabaseManager, DataMigration
 from services import ScoringService, EventManagementService
 
 # Configuration
+# Handle admin password with fallback
 try:
     ADMIN_PASSWORD = st.secrets["admin_password"]
-except KeyError:
+except (KeyError, FileNotFoundError):
     ADMIN_PASSWORD = "cirqit2024"  # Default password for deployment
-    st.warning("⚠️ Using default admin password. Please configure 'admin_password' in Streamlit Cloud secrets for security.")
+    # Show warning in sidebar when app loads
 
 DB_FILE = "cirqit_dashboard.db"
 
