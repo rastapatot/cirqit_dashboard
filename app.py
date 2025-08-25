@@ -39,12 +39,57 @@ def ensure_teams_in_db(team_names):
     conn.commit()
     conn.close()
 
+def fix_duplicate_alliance_teams():
+    import gspread
+    from google.oauth2.service_account import Credentials
+    
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+    service_account_info = st.secrets["google"]
+    credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+    gc = gspread.authorize(credentials)
+    
+    SCORES_SHEET_ID = "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo"
+    scores_sheet = gc.open_by_key(SCORES_SHEET_ID)
+    worksheet = scores_sheet.sheet1
+    
+    # Get all data
+    all_values = worksheet.get_all_values()
+    headers = all_values[0]
+    
+    # Find Alliance teams
+    alliance_rows = []
+    for i, row in enumerate(all_values[1:], start=2):
+        if 'Alliance of Just Minds' in row[0]:
+            alliance_rows.append((i, row))
+    
+    if len(alliance_rows) == 2:
+        # Find which one has data and which is empty
+        row1_idx, row1_data = alliance_rows[0]
+        row2_idx, row2_data = alliance_rows[1]
+        
+        # Check which row has actual scores (Total_Score column)
+        total_score_col = headers.index('Total_Score')
+        row1_score = float(row1_data[total_score_col]) if row1_data[total_score_col] else 0
+        row2_score = float(row2_data[total_score_col]) if row2_data[total_score_col] else 0
+        
+        if row1_score > 0 and row2_score == 0:
+            # Keep row1, delete row2, rename row1 to clean name
+            worksheet.update_cell(row1_idx, 1, "Alliance of Just Minds")
+            worksheet.delete_rows(row2_idx)
+        elif row2_score > 0 and row1_score == 0:
+            # Keep row2, delete row1, rename row2 to clean name
+            worksheet.update_cell(row2_idx, 1, "Alliance of Just Minds")
+            worksheet.delete_rows(row1_idx)
+        
+        return True
+    return False
+
 @st.cache_data
 def load_data():
     import gspread
     from google.oauth2.service_account import Credentials
 
-    SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
     service_account_info = st.secrets["google"]
     credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
     gc = gspread.authorize(credentials)
@@ -169,14 +214,32 @@ def main():
         )
 
     with tab4:
-        st.subheader("🔐 Admin Panel: Award Bonus Points")
+        st.subheader("🔐 Admin Panel")
         password = st.text_input("Enter admin password", type="password")
         if password == ADMIN_PASSWORD:
+            st.markdown("### Award Bonus Points")
             team_to_award = st.selectbox("Select team to award +1 bonus", scores["Team Name"].dropna().unique())
             if st.button("Award Bonus Point"):
                 add_bonus_point(team_to_award)
                 st.success(f"✅ Bonus point awarded to {team_to_award}")
                 st.experimental_rerun()
+            
+            st.markdown("### Data Management")
+            st.markdown("**Fix Data Issues:**")
+            if st.button("Fix Duplicate Alliance Teams"):
+                try:
+                    if fix_duplicate_alliance_teams():
+                        st.success("✅ Successfully fixed duplicate Alliance teams in Google Sheets")
+                        st.info("🔄 Please refresh the page to see the updated data")
+                        st.cache_data.clear()
+                    else:
+                        st.info("ℹ️ No duplicate Alliance teams found to fix")
+                except Exception as e:
+                    st.error(f"❌ Error fixing teams: {str(e)}")
+            
+            st.markdown("**Update Event Data:**")
+            st.info("📝 Event attendance update functionality can be added here for future events")
+            
         else:
             st.info("Enter the correct password to access admin features.")
 
