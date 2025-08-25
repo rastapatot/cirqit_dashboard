@@ -91,7 +91,9 @@ def main():
 
     with tab1:
         st.subheader("📊 Team Performance Overview")
-        st.dataframe(scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
+        teams_display = scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]].reset_index(drop=True)
+        teams_display.index = teams_display.index + 1
+        st.dataframe(teams_display)
 
     with tab2:
         st.subheader("🔍 Team Explorer")
@@ -106,14 +108,14 @@ def main():
         st.write("**Team Members:**")
         # Merge team member info with their individual scores
         team_info_with_scores = team_info.merge(scores, on="Team Name", how="left")
-        team_members_display = team_info_with_scores[["Member Name", "Member Department", "Total_Member_Points"]].sort_values("Member Name")
+        team_members_display = team_info_with_scores[["Member Name", "Member Department", "Total_Member_Points"]].sort_values("Member Name").reset_index(drop=True)
+        team_members_display.index = team_members_display.index + 1
         st.dataframe(team_members_display, 
                     column_config={
                         "Member Name": st.column_config.Column("Member Name", width="medium"),
                         "Member Department": st.column_config.Column("Member Department", width="medium"),
                         "Total_Member_Points": st.column_config.Column("Points", width="small")
-                    },
-                    hide_index=True)
+                    })
         st.write("**Coach:**", team_info["Coach/Consultant"].iloc[0])
 
     with tab3:
