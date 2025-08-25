@@ -592,13 +592,17 @@ def main():
 
     with tab1:
         st.subheader("📊 Team Performance Overview")
-        teams_display = scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "coach_total_bonus", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]].reset_index(drop=True)
+        teams_display = scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "coach_total_bonus", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]].copy()
+        # Sort by Total_Score descending (highest to lowest)
+        teams_display = teams_display.sort_values("Total_Score", ascending=False).reset_index(drop=True)
         teams_display.index = teams_display.index + 1
         st.dataframe(teams_display)
 
     with tab2:
         st.subheader("🔍 Team Explorer")
-        selected_team = st.selectbox("Select a team", sorted(scores["Team Name"].dropna().unique()))
+        # Sort teams by score (highest to lowest) for dropdown
+        teams_by_score = scores.sort_values("Total_Score", ascending=False)["Team Name"].dropna().unique()
+        selected_team = st.selectbox("Select a team", teams_by_score)
         
         # Enhanced team matching to handle name variations
         team_info = masterlist[masterlist["Team Name"] == selected_team]
@@ -672,7 +676,7 @@ def main():
                 how="left"
             )
             team_info_with_individual["Points Earned"] = team_info_with_individual["Points Earned"].fillna(0)
-            team_members_display = team_info_with_individual[["Member Name", "Member Department", "Points Earned"]].sort_values("Member Name").reset_index(drop=True)
+            team_members_display = team_info_with_individual[["Member Name", "Member Department", "Points Earned"]].sort_values("Points Earned", ascending=False).reset_index(drop=True)
         else:
             # If individual scores unavailable, show 0 for all members
             team_members_display = team_info_with_team_scores[["Member Name", "Member Department"]].sort_values("Member Name").reset_index(drop=True)
@@ -710,7 +714,18 @@ def main():
 
     with tab3:
         st.subheader("🎓 Coach Explorer")
-        selected_coach = st.selectbox("Select a coach", sorted(masterlist["Coach/Consultant"].dropna().unique()))
+        # Sort coaches by their total scores (highest to lowest)
+        if len(individual_coach_scores) > 0:
+            coach_totals = individual_coach_scores.groupby("Coach Name")["Points Earned"].sum().reset_index()
+            coaches_by_score = coach_totals.sort_values("Points Earned", ascending=False)["Coach Name"].tolist()
+            # Add any coaches not in individual scores
+            all_coaches = masterlist["Coach/Consultant"].dropna().unique()
+            for coach in all_coaches:
+                if coach not in coaches_by_score:
+                    coaches_by_score.append(coach)
+        else:
+            coaches_by_score = sorted(masterlist["Coach/Consultant"].dropna().unique())
+        selected_coach = st.selectbox("Select a coach", coaches_by_score)
         coach_teams = masterlist[masterlist["Coach/Consultant"] == selected_coach]
         
         # Get unique team names for this coach and their scores
@@ -718,7 +733,7 @@ def main():
         coach_team_scores = scores[scores["Team Name"].isin(coach_team_names)]
         
         st.write("**Team Scores for this coach:**")
-        st.table(coach_team_scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus"]])
+        st.table(coach_team_scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus"]].sort_values("Total_Score", ascending=False))
         
         # Merge team member info with individual scores and team data
         coach_teams_with_team_scores = coach_teams.merge(scores, on="Team Name", how="left")
@@ -732,7 +747,7 @@ def main():
                 how="left"
             )
             coach_teams_with_individual["Points Earned"] = coach_teams_with_individual["Points Earned"].fillna(0)
-            coach_teams_display = coach_teams_with_individual[["Team Name", "Total_Score", "Total_Member_Points", "Member Name", "Member Department", "Points Earned"]].sort_values(["Team Name", "Member Name"])
+            coach_teams_display = coach_teams_with_individual[["Team Name", "Total_Score", "Total_Member_Points", "Member Name", "Member Department", "Points Earned"]].sort_values(["Team Name", "Points Earned"], ascending=[True, False])
         else:
             # If individual scores unavailable, show 0 for all members
             coach_teams_display = coach_teams_with_team_scores[["Team Name", "Total_Score", "Total_Member_Points", "Member Name", "Member Department"]].sort_values(["Team Name", "Member Name"])
@@ -778,8 +793,8 @@ def main():
                     "Points Earned": [coach_points]
                 })
                 
-                # Create member list with individual points and numbering
-                members_list = team_members[["Member Name", "Member Department", "Points Earned"]].reset_index(drop=True)
+                # Create member list with individual points and numbering (sorted by points descending)
+                members_list = team_members[["Member Name", "Member Department", "Points Earned"]].sort_values("Points Earned", ascending=False).reset_index(drop=True)
                 members_list["Role"] = "Team Member"
                 
                 # Handle dual-role scenario (coach who is also a team member)
@@ -831,8 +846,8 @@ def main():
                 "Points Earned": [coach_total_points]
             })
             
-            # Show individual member points, not team scores
-            clean_display = coach_teams_display[["Team Name", "Member Name", "Member Department", "Points Earned"]].reset_index(drop=True)
+            # Show individual member points, not team scores (sorted by points descending)
+            clean_display = coach_teams_display[["Team Name", "Member Name", "Member Department", "Points Earned"]].sort_values("Points Earned", ascending=False).reset_index(drop=True)
             clean_display["Role"] = "Team Member"
             
             # Handle dual-role scenario - add coach's member points to coach total
