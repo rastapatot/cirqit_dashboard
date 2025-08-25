@@ -22,7 +22,7 @@ def get_bonus_points():
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query("SELECT * FROM bonus_points", conn)
     conn.close()
-    return df
+return df
 
 def add_bonus_point(team_name):
     conn = sqlite3.connect(DB_FILE)
@@ -35,9 +35,9 @@ def ensure_teams_in_db(team_names):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     for team in team_names:
-    cursor.execute("INSERT OR IGNORE INTO bonus_points (team_name, bonus) VALUES (?, 0)", (team,))
-    conn.commit()
-    conn.close()
+        cursor.execute("INSERT OR IGNORE INTO bonus_points (team_name, bonus) VALUES (?, 0)", (team,))
+        conn.commit()
+        conn.close()
 
 
 @st.cache_data
@@ -62,7 +62,7 @@ import gspread
     scores = pd.DataFrame(scores_sheet.sheet1.get_all_records())
     masterlist = pd.DataFrame(masterlist_sheet.sheet1.get_all_records())
 
-    return attendance, scores, masterlist
+return attendance, scores, masterlist
 
 
 def main():
@@ -92,22 +92,22 @@ def main():
     st.subheader("🔍 Coach Search")
     search_coach = st.text_input("Search for a coach by name")
     if search_coach:
-    coach_teams = masterlist[masterlist["Coach/Consultant"].str.contains(search_coach, case=False, na=False)]
-    coach_team_names = coach_teams["Team Name"].dropna().unique()
-    coach_scores = scores[scores["Team Name"].isin(coach_team_names)]
-    st.write(f"**Performance Summary for Coach: {search_coach}**")
-    st.dataframe(coach_scores[["Team Name", "Total_Score", "Bonus_Points", "Average_Score_Per_Event", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
+        coach_teams = masterlist[masterlist["Coach/Consultant"].str.contains(search_coach, case=False, na=False)]
+        coach_team_names = coach_teams["Team Name"].dropna().unique()
+        coach_scores = scores[scores["Team Name"].isin(coach_team_names)]
+        st.write(f"**Performance Summary for Coach: {search_coach}**")
+        st.dataframe(coach_scores[["Team Name", "Total_Score", "Bonus_Points", "Average_Score_Per_Event", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
 
-    with st.expander("🔐 Admin Panel: Award Bonus Points"):
-    password = st.text_input("Enter admin password", type="password")
-    if password == ADMIN_PASSWORD:
-    team_to_award = st.selectbox("Select team to award +1 bonus", scores["Team Name"].dropna().unique())
-    if st.button("Award Bonus Point"):
-    add_bonus_point(team_to_award)
-    st.success(f"✅ Bonus point awarded to {team_to_award}")
-    st.experimental_rerun()
-    else:
-    st.info("Enter the correct password to access admin features.")
+        with st.expander("🔐 Admin Panel: Award Bonus Points"):
+            password = st.text_input("Enter admin password", type="password")
+            if password == ADMIN_PASSWORD:
+                team_to_award = st.selectbox("Select team to award +1 bonus", scores["Team Name"].dropna().unique())
+                if st.button("Award Bonus Point"):
+                    add_bonus_point(team_to_award)
+                    st.success(f"✅ Bonus point awarded to {team_to_award}")
+                    st.experimental_rerun()
+                    else:
+                        st.info("Enter the correct password to access admin features.")
 
-if __name__ == "__main__":
-    main()
+                        if __name__ == "__main__":
+main()
