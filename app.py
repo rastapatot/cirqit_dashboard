@@ -560,8 +560,10 @@ def main():
         st.write("**Team Members:**")
         
         # Get coach info and score
-        coach_name = team_info["Coach/Consultant"].iloc[0]
-        coach_dept = team_info["Coach Department"].iloc[0] if "Coach Department" in team_info.columns else "Coach"
+        coach_name = team_info["Coach/Consultant"].iloc[0] if len(team_info) > 0 else ""
+        coach_dept = "Coach"
+        if len(team_info) > 0 and "Coach Department" in team_info.columns:
+            coach_dept = team_info["Coach Department"].iloc[0] if pd.notna(team_info["Coach Department"].iloc[0]) else "Coach"
         
         # Get coach individual score
         coach_points = 0
@@ -656,7 +658,9 @@ def main():
                 st.write(f"**{team}** (Team Score: {team_score}, Total Member Points: {team_member_points})")
                 
                 # Get coach info and score for this team
-                coach_dept = team_members.iloc[0]["Member Department"] if len(team_members) > 0 else "Coach"
+                coach_dept = "Coach"
+                if len(team_members) > 0 and "Member Department" in team_members.columns:
+                    coach_dept = team_members.iloc[0]["Member Department"] if pd.notna(team_members.iloc[0]["Member Department"]) else "Coach"
                 coach_points = 0
                 if len(individual_coach_scores) > 0:
                     coach_score_data = individual_coach_scores[
