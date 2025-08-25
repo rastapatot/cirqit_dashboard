@@ -66,11 +66,14 @@ def main():
     st.set_page_config("CirQit Hackathon Dashboard", layout="wide")
     
     # Display logo and title
-    col1, col2 = st.columns([1, 8])
-    with col1:
-        st.image("CirQit_Logo.png", width=120)
-    with col2:
-        st.markdown("<h1 style='margin-top: 25px; margin-left: -40px;'>CirQit Hackathon Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+        <img src="data:image/png;base64,{}" width="120"/>
+        <h1 style="margin: 0;">CirQit Hackathon Dashboard</h1>
+    </div>
+    """.format(
+        __import__('base64').b64encode(open('CirQit_Logo.png', 'rb').read()).decode()
+    ), unsafe_allow_html=True)
 
     init_db()
     attendance, scores, masterlist = load_data()
