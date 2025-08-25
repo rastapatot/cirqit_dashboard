@@ -291,7 +291,7 @@ def load_data():
 
 @st.cache_data
 def get_individual_member_scores():
-    """Load individual member scores with multiple fallback strategies"""
+    """Load individual member scores from Google Sheets"""
     try:
         import gspread
         from google.oauth2.service_account import Credentials
@@ -390,8 +390,6 @@ def get_individual_member_scores():
                                 individual_scores = member_only_data.groupby([team_col, member_col])[points_col].sum().reset_index()
                                 individual_scores.rename(columns={points_col: 'Points Earned', team_col: 'Team', member_col: 'Member Name'}, inplace=True)
                                 return individual_scores
-                        elif points_col:
-                            st.warning(f"Found points data in {config['name']} but missing required columns. Available: {member_data.columns.tolist()}")
                 
             except Exception as e:
                 continue  # Try next configuration
@@ -405,7 +403,7 @@ def get_individual_member_scores():
 
 @st.cache_data  
 def get_individual_coach_scores():
-    """Load individual coach scores with multiple fallback strategies"""
+    """Load individual coach scores from Google Sheets"""
     try:
         import gspread
         from google.oauth2.service_account import Credentials
@@ -597,10 +595,9 @@ def main():
             team_info_with_individual["Points Earned"] = team_info_with_individual["Points Earned"].fillna(0)
             team_members_display = team_info_with_individual[["Member Name", "Member Department", "Points Earned"]].sort_values("Member Name").reset_index(drop=True)
         else:
-            # Fallback if individual scores unavailable  
+            # If individual scores unavailable, show 0 for all members
             team_members_display = team_info_with_team_scores[["Member Name", "Member Department"]].sort_values("Member Name").reset_index(drop=True)
             team_members_display["Points Earned"] = 0
-            st.warning("⚠️ Individual member scores unavailable - showing 0 for all members")
         
         # Add Role column for team members
         team_members_display["Role"] = "Team Member"
@@ -643,7 +640,7 @@ def main():
             coach_teams_with_individual["Points Earned"] = coach_teams_with_individual["Points Earned"].fillna(0)
             coach_teams_display = coach_teams_with_individual[["Team Name", "Total_Score", "Total_Member_Points", "Member Name", "Member Department", "Points Earned"]].sort_values(["Team Name", "Member Name"])
         else:
-            # Fallback if individual scores unavailable
+            # If individual scores unavailable, show 0 for all members
             coach_teams_display = coach_teams_with_team_scores[["Team Name", "Total_Score", "Total_Member_Points", "Member Name", "Member Department"]].sort_values(["Team Name", "Member Name"])
             coach_teams_display["Points Earned"] = 0
         
