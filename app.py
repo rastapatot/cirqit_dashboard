@@ -76,7 +76,6 @@ def main():
 
     scores = scores.merge(bonus_df, how="left", left_on="Team Name", right_on="team_name")
 scores.rename(columns={"bonus": "Bonus_Points", "Average_Score": "Average_Score_Per_Event"}, inplace=True)
-    scores["Total Score (with Bonus)"] = scores["Total_Score"] + scores["bonus"]
 
     st.subheader("📊 Team Performance Overview")
     st.dataframe(scores[["Team Name", "Total_Score", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
