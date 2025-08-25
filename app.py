@@ -540,6 +540,30 @@ def main():
     scores = scores.merge(bonus_df, how="left", left_on="Team Name", right_on="team_name")
     scores["bonus"] = scores["bonus"].fillna(0)
     
+    # Recalculate team totals based on actual individual scores from Google Sheets
+    if len(individual_scores) > 0:
+        # Calculate actual member points per team
+        actual_member_totals = individual_scores.groupby("Team")["Points Earned"].sum().reset_index()
+        actual_member_totals.columns = ["Team Name", "Actual_Member_Points"]
+        
+        # Merge with scores and replace CSV values with actual values
+        scores = scores.merge(actual_member_totals, on="Team Name", how="left")
+        scores["Total_Member_Points"] = scores["Actual_Member_Points"].fillna(0)
+        scores = scores.drop("Actual_Member_Points", axis=1)
+    
+    if len(individual_coach_scores) > 0:
+        # Calculate actual coach points per team
+        actual_coach_totals = individual_coach_scores.groupby("Team")["Points Earned"].sum().reset_index()
+        actual_coach_totals.columns = ["Team Name", "Actual_Coach_Points"]
+        
+        # Merge with scores and replace CSV values with actual values
+        scores = scores.merge(actual_coach_totals, on="Team Name", how="left")
+        scores["Total_Coach_Points"] = scores["Actual_Coach_Points"].fillna(0)
+        scores = scores.drop("Actual_Coach_Points", axis=1)
+    
+    # Recalculate total score based on actual individual points
+    scores["Total_Score"] = scores["Total_Member_Points"] + scores["Total_Coach_Points"]
+    
     # Add coach total scores to each team they manage
     scores["coach_total_bonus"] = 0
     if len(individual_coach_scores) > 0:
