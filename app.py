@@ -107,6 +107,72 @@ def load_data():
     masterlist = pd.DataFrame(masterlist_sheet.sheet1.get_all_records())
 
     return attendance, scores, masterlist
+
+@st.cache_data
+def get_individual_member_scores():
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+        import pandas as pd
+        
+        SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+        service_account_info = st.secrets["google"]
+        credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+        gc = gspread.authorize(credentials)
+        
+        ATTENDANCE_SHEET_ID = "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8"
+        attendance_sheet = gc.open_by_key(ATTENDANCE_SHEET_ID)
+        
+        # Get Member Attendance worksheet
+        member_attendance_ws = None
+        for ws in attendance_sheet.worksheets():
+            if 'member' in ws.title.lower() and 'attendance' in ws.title.lower():
+                member_attendance_ws = ws
+                break
+        
+        if member_attendance_ws:
+            member_data = pd.DataFrame(member_attendance_ws.get_all_records())
+            if len(member_data) > 0 and 'Points Earned' in member_data.columns:
+                # Calculate individual member scores
+                individual_scores = member_data.groupby(['Team', 'Member Name'])['Points Earned'].sum().reset_index()
+                return individual_scores
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error loading individual member scores: {str(e)}")
+        return pd.DataFrame()
+
+@st.cache_data  
+def get_individual_coach_scores():
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+        import pandas as pd
+        
+        SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+        service_account_info = st.secrets["google"]
+        credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+        gc = gspread.authorize(credentials)
+        
+        ATTENDANCE_SHEET_ID = "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8"
+        attendance_sheet = gc.open_by_key(ATTENDANCE_SHEET_ID)
+        
+        # Get Coach Attendance worksheet
+        coach_attendance_ws = None
+        for ws in attendance_sheet.worksheets():
+            if 'coach' in ws.title.lower() and 'attendance' in ws.title.lower():
+                coach_attendance_ws = ws
+                break
+        
+        if coach_attendance_ws:
+            coach_data = pd.DataFrame(coach_attendance_ws.get_all_records())
+            if len(coach_data) > 0 and 'Points Earned' in coach_data.columns:
+                # Calculate individual coach scores
+                individual_coach_scores = coach_data.groupby(['Team', 'Coach Name'])['Points Earned'].sum().reset_index()
+                return individual_coach_scores
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error loading individual coach scores: {str(e)}")
+        return pd.DataFrame()
 def main():
     st.set_page_config("CirQit Hackathon Dashboard", layout="wide")
     
@@ -122,6 +188,8 @@ def main():
 
     init_db()
     attendance, scores, masterlist = load_data()
+    individual_scores = get_individual_member_scores()
+    individual_coach_scores = get_individual_coach_scores()
     
     ensure_teams_in_db(scores["Team Name"].dropna().unique())
     bonus_df = get_bonus_points()
@@ -151,17 +219,61 @@ def main():
         
         st.write(f"**Team Score:** {team_score} (Base) + {team_attendance_bonus} (Attendance) + {team_bonus} (Bonus) = {team_total} (Total)")
         st.write("**Team Members:**")
-        # Merge team member info with their individual scores
-        team_info_with_scores = team_info.merge(scores, on="Team Name", how="left")
-        team_members_display = team_info_with_scores[["Member Name", "Member Department", "Total_Member_Points"]].sort_values("Member Name").reset_index(drop=True)
-        team_members_display.index = team_members_display.index + 1
-        st.dataframe(team_members_display, 
+        
+        # Get coach info and score
+        coach_name = team_info["Coach/Consultant"].iloc[0]
+        coach_dept = team_info["Coach Department"].iloc[0] if "Coach Department" in team_info.columns else "Coach"
+        
+        # Get coach individual score
+        coach_points = 0
+        if len(individual_coach_scores) > 0:
+            coach_score_data = individual_coach_scores[
+                (individual_coach_scores["Team"] == selected_team) & 
+                (individual_coach_scores["Coach Name"] == coach_name)
+            ]
+            if len(coach_score_data) > 0:
+                coach_points = coach_score_data.iloc[0]["Points Earned"]
+        
+        # Create coach entry
+        coach_entry = pd.DataFrame({
+            "Member Name": [coach_name],
+            "Member Department": [coach_dept],
+            "Role": ["Coach"],
+            "Points Earned": [coach_points]
+        })
+        
+        # Merge team member info with individual member scores
+        team_info_with_team_scores = team_info.merge(scores, on="Team Name", how="left")
+        
+        # Add individual member scores
+        if len(individual_scores) > 0:
+            team_info_with_individual = team_info_with_team_scores.merge(
+                individual_scores,
+                left_on=["Team Name", "Member Name"],
+                right_on=["Team", "Member Name"],
+                how="left"
+            )
+            team_info_with_individual["Points Earned"] = team_info_with_individual["Points Earned"].fillna(0)
+            team_members_display = team_info_with_individual[["Member Name", "Member Department", "Points Earned"]].sort_values("Member Name").reset_index(drop=True)
+        else:
+            # Fallback if individual scores unavailable  
+            team_members_display = team_info_with_team_scores[["Member Name", "Member Department"]].sort_values("Member Name").reset_index(drop=True)
+            team_members_display["Points Earned"] = 0
+        
+        # Add Role column for team members
+        team_members_display["Role"] = "Team Member"
+        
+        # Combine coach and members (coach first)
+        combined_display = pd.concat([coach_entry, team_members_display], ignore_index=True)
+        combined_display.index = combined_display.index + 1
+        
+        st.dataframe(combined_display, 
                     column_config={
-                        "Member Name": st.column_config.Column("Member Name", width="medium"),
-                        "Member Department": st.column_config.Column("Member Department", width="medium"),
-                        "Total_Member_Points": st.column_config.Column("Points", width="small")
+                        "Member Name": st.column_config.Column("Name", width="medium"),
+                        "Member Department": st.column_config.Column("Department", width="medium"),
+                        "Role": st.column_config.Column("Role", width="small"),
+                        "Points Earned": st.column_config.Column("Individual Points", width="small")
                     })
-        st.write("**Coach:**", team_info["Coach/Consultant"].iloc[0])
 
     with tab3:
         st.subheader("🎓 Coach Explorer")
@@ -175,9 +287,23 @@ def main():
         st.write("**Team Scores for this coach:**")
         st.table(coach_team_scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus"]])
         
-        # Merge team member info with their individual scores
-        coach_teams_with_scores = coach_teams.merge(scores, on="Team Name", how="left")
-        coach_teams_display = coach_teams_with_scores[["Team Name", "Total_Member_Points", "Member Name", "Member Department"]].sort_values(["Team Name", "Member Name"])
+        # Merge team member info with individual scores and team data
+        coach_teams_with_team_scores = coach_teams.merge(scores, on="Team Name", how="left")
+        
+        # Merge with individual member scores
+        if len(individual_scores) > 0:
+            coach_teams_with_individual = coach_teams_with_team_scores.merge(
+                individual_scores, 
+                left_on=["Team Name", "Member Name"], 
+                right_on=["Team", "Member Name"], 
+                how="left"
+            )
+            coach_teams_with_individual["Points Earned"] = coach_teams_with_individual["Points Earned"].fillna(0)
+            coach_teams_display = coach_teams_with_individual[["Team Name", "Total_Score", "Total_Member_Points", "Member Name", "Member Department", "Points Earned"]].sort_values(["Team Name", "Member Name"])
+        else:
+            # Fallback if individual scores unavailable
+            coach_teams_display = coach_teams_with_team_scores[["Team Name", "Total_Score", "Total_Member_Points", "Member Name", "Member Department"]].sort_values(["Team Name", "Member Name"])
+            coach_teams_display["Points Earned"] = 0
         
         # Display by teams option
         display_option = st.radio("Display format:", ["All Members", "Grouped by Teams"])
@@ -186,11 +312,77 @@ def main():
             st.write("**Teams and Members:**")
             for team in sorted(coach_team_names):
                 team_members = coach_teams_display[coach_teams_display["Team Name"] == team]
-                st.write(f"**{team}**")
-                st.table(team_members[["Total_Member_Points", "Member Name", "Member Department"]])
+                team_score = team_members.iloc[0]["Total_Score"]
+                team_member_points = team_members.iloc[0]["Total_Member_Points"]
+                st.write(f"**{team}** (Team Score: {team_score}, Total Member Points: {team_member_points})")
+                
+                # Get coach info and score for this team
+                coach_dept = team_members.iloc[0]["Member Department"] if len(team_members) > 0 else "Coach"
+                coach_points = 0
+                if len(individual_coach_scores) > 0:
+                    coach_score_data = individual_coach_scores[
+                        (individual_coach_scores["Team"] == team) & 
+                        (individual_coach_scores["Coach Name"] == selected_coach)
+                    ]
+                    if len(coach_score_data) > 0:
+                        coach_points = coach_score_data.iloc[0]["Points Earned"]
+                
+                # Create coach entry
+                coach_entry = pd.DataFrame({
+                    "Member Name": [selected_coach],
+                    "Member Department": [coach_dept],
+                    "Role": ["Coach"],
+                    "Points Earned": [coach_points]
+                })
+                
+                # Create member list with individual points and numbering
+                members_list = team_members[["Member Name", "Member Department", "Points Earned"]].reset_index(drop=True)
+                members_list["Role"] = "Team Member"
+                
+                # Combine coach and members (coach first)
+                combined_list = pd.concat([coach_entry, members_list], ignore_index=True)
+                combined_list.index = combined_list.index + 1
+                
+                st.dataframe(combined_list, column_config={
+                    "Member Name": st.column_config.Column("Name", width="medium"),
+                    "Member Department": st.column_config.Column("Department", width="medium"),
+                    "Role": st.column_config.Column("Role", width="small"),
+                    "Points Earned": st.column_config.Column("Individual Points", width="small")
+                })
         else:
             st.write("**All Members under this coach:**")
-            st.table(coach_teams_display)
+            
+            # Get coach individual score across all teams
+            coach_total_points = 0
+            if len(individual_coach_scores) > 0:
+                coach_all_scores = individual_coach_scores[individual_coach_scores["Coach Name"] == selected_coach]
+                if len(coach_all_scores) > 0:
+                    coach_total_points = coach_all_scores["Points Earned"].sum()
+            
+            # Create coach entry for all members view
+            coach_entry = pd.DataFrame({
+                "Team Name": ["Coach Total"],
+                "Member Name": [selected_coach],
+                "Member Department": ["Coach"],
+                "Role": ["Coach"],
+                "Points Earned": [coach_total_points]
+            })
+            
+            # Show individual member points, not team scores
+            clean_display = coach_teams_display[["Team Name", "Member Name", "Member Department", "Points Earned"]].reset_index(drop=True)
+            clean_display["Role"] = "Team Member"
+            
+            # Combine coach and members (coach first)
+            combined_display = pd.concat([coach_entry, clean_display], ignore_index=True)
+            combined_display.index = combined_display.index + 1
+            
+            st.dataframe(combined_display, column_config={
+                "Team Name": st.column_config.Column("Team", width="medium"),
+                "Member Name": st.column_config.Column("Name", width="medium"), 
+                "Member Department": st.column_config.Column("Department", width="medium"),
+                "Role": st.column_config.Column("Role", width="small"),
+                "Points Earned": st.column_config.Column("Individual Points", width="small")
+            })
         
         # CSV Export functionality
         st.write("**Export Data:**")
