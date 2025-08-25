@@ -13,12 +13,7 @@ from database import DatabaseManager, DataMigration
 from services import ScoringService, EventManagementService
 
 # Configuration
-# Handle admin password with fallback
-try:
-    ADMIN_PASSWORD = st.secrets["admin_password"]
-except (KeyError, FileNotFoundError):
-    ADMIN_PASSWORD = "cirqit2024"  # Default password for deployment
-    # Show warning in sidebar when app loads
+ADMIN_PASSWORD = "cirqit2024"  # Direct assignment - no secrets needed
 
 DB_FILE = "cirqit_dashboard.db"
 
