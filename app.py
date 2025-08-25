@@ -235,6 +235,10 @@ def get_individual_member_scores():
                 if member_ws:
                     member_data = pd.DataFrame(member_ws.get_all_records())
                     if len(member_data) > 0:
+                        # Skip if this looks like aggregated team data (has Total_ columns)
+                        if any('Total_' in col for col in member_data.columns):
+                            continue
+                        
                         # Try different column name variations
                         points_col = None
                         for col in member_data.columns:
@@ -389,6 +393,10 @@ def get_individual_coach_scores():
                 if coach_ws:
                     coach_data = pd.DataFrame(coach_ws.get_all_records())
                     if len(coach_data) > 0:
+                        # Skip if this looks like aggregated team data (has Total_ columns)
+                        if any('Total_' in col for col in coach_data.columns):
+                            continue
+                        
                         # Try different column name variations
                         points_col = None
                         for col in coach_data.columns:
