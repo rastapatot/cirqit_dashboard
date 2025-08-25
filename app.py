@@ -43,7 +43,6 @@ def create_individual_attendance_sheets():
     """Create individual member and coach attendance worksheets from existing team data"""
     import gspread
     from google.oauth2.service_account import Credentials
-    import pandas as pd
     
     SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
     service_account_info = st.secrets["google"]
@@ -295,7 +294,6 @@ def get_individual_member_scores():
     try:
         import gspread
         from google.oauth2.service_account import Credentials
-        import pandas as pd
         
         SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
         service_account_info = st.secrets["google"]
@@ -407,7 +405,6 @@ def get_individual_coach_scores():
     try:
         import gspread
         from google.oauth2.service_account import Credentials
-        import pandas as pd
         
         SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
         service_account_info = st.secrets["google"]
@@ -899,8 +896,7 @@ def main():
                 try:
                     import gspread
                     from google.oauth2.service_account import Credentials
-                    import pandas as pd
-                    
+                                
                     SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
                     service_account_info = st.secrets["google"]
                     credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
