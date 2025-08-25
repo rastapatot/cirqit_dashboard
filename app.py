@@ -75,7 +75,6 @@ def main():
     bonus_df = get_bonus_points()
 
     scores = scores.merge(bonus_df, how="left", left_on="Team Name", right_on="team_name")
-scores.rename(columns={"bonus": "Bonus_Points"}, inplace=True)
     scores["Total Score (with Bonus)"] = scores["Total_Score"] + scores["bonus"]
 
     st.subheader("📊 Team Performance Overview")
