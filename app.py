@@ -259,6 +259,7 @@ def main():
             # Fallback if individual scores unavailable  
             team_members_display = team_info_with_team_scores[["Member Name", "Member Department"]].sort_values("Member Name").reset_index(drop=True)
             team_members_display["Points Earned"] = 0
+            st.warning("⚠️ Individual member scores unavailable - showing 0 for all members")
         
         # Add Role column for team members
         team_members_display["Role"] = "Team Member"
@@ -431,6 +432,17 @@ def main():
             
             st.markdown("**Update Event Data:**")
             st.info("📝 Event attendance update functionality can be added here for future events")
+            
+            st.markdown("**Data Loading Status:**")
+            st.write(f"Individual member scores loaded: {len(individual_scores)} records")
+            st.write(f"Individual coach scores loaded: {len(individual_coach_scores)} records")
+            if len(individual_scores) > 0:
+                st.write(f"Teams with individual data: {individual_scores['Team'].nunique()}")
+            if st.button("Show Sample Individual Scores"):
+                if len(individual_scores) > 0:
+                    st.dataframe(individual_scores.head(10))
+                else:
+                    st.error("No individual scores loaded")
             
         else:
             st.info("Enter the correct password to access admin features.")
