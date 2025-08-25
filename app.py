@@ -75,19 +75,32 @@ def main():
     bonus_df = get_bonus_points()
 
     scores = scores.merge(bonus_df, how="left", left_on="Team Name", right_on="team_name")
-    scores["Total Score (with Bonus)"] = scores["Total_Score"] + scores["bonus"]
+    scores["Attendance Points"] = scores["TOTAL"] + scores["Additional Bonus Points"]
 
-    st.subheader("📊 Team Performance Overview")
-    st.dataframe(scores[["Team Name", "Total_Score", "bonus", "Total Score (with Bonus)", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["Team Performance Overview", "Team Explorer", "Coach Explorer", "Admin Panel"])
 
-    st.subheader("🔍 Team Explorer")
-    selected_team = st.selectbox("Select a team", scores["Team Name"].dropna().unique())
-    team_info = masterlist[masterlist["Team Name"] == selected_team]
-    st.write("**Team Members:**")
-    st.table(team_info[["Member Name", "Member Department"]])
-    st.write("**Coach:**", team_info["Coach/Consultant"].iloc[0])
+    with tab1:
+        st.subheader("📊 Team Performance Overview")
+        st.dataframe(scores[["Team Name", "TOTAL", "Additional Bonus Points", "Attendance Points", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
 
-    with st.expander("🔐 Admin Panel: Award Bonus Points"):
+    with tab2:
+        st.subheader("🔍 Team Explorer")
+        selected_team = st.selectbox("Select a team", scores["Team Name"].dropna().unique())
+        team_info = masterlist[masterlist["Team Name"] == selected_team]
+        st.write("**Team Members:**")
+        st.table(team_info[["Member Name", "Member Department"]])
+        st.write("**Coach:**", team_info["Coach/Consultant"].iloc[0])
+
+    with tab3:
+        st.subheader("🎓 Coach Explorer")
+        selected_coach = st.selectbox("Select a coach", masterlist["Coach/Consultant"].dropna().unique())
+        coach_teams = masterlist[masterlist["Coach/Consultant"] == selected_coach]
+        st.write("**Teams under this coach:**")
+        st.table(coach_teams[["Team Name", "Member Name", "Member Department"]])
+
+    with tab4:
+        st.subheader("🔐 Admin Panel: Award Bonus Points")
         password = st.text_input("Enter admin password", type="password")
         if password == ADMIN_PASSWORD:
             team_to_award = st.selectbox("Select team to award +1 bonus", scores["Team Name"].dropna().unique())
@@ -97,6 +110,7 @@ def main():
                 st.experimental_rerun()
         else:
             st.info("Enter the correct password to access admin features.")
+
 
 if __name__ == "__main__":
     main()
