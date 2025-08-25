@@ -481,8 +481,8 @@ def auto_fix_attendance_issues():
                 {"name": "Celine Keisja Nebrija", "sessions": ["TechSharing2-ADAM", "TechSharing3-N8N", "TechSharing3.1-Claude"]},
                 {"name": "Jovan Beato", "sessions": ["TechSharing2-ADAM", "TechSharing3-N8N"]},
                 {"name": "Anthony John Matiling", "sessions": ["TechSharing2-ADAM", "TechSharing3-N8N"]},
-                {"name": "Mariel Peñaflor", "sessions": ["TechSharing2-ADAM"]},
-                {"name": "Christopher Lizada", "sessions": ["TechSharing2-ADAM"]},
+                {"name": "Mariel Peñaflor", "sessions": ["TechSharing2-ADAM", "TechSharing3-N8N", "TechSharing3.1-Claude"]},
+                {"name": "Christopher Lizada", "sessions": ["TechSharing2-ADAM", "TechSharing3-N8N", "TechSharing3.1-Claude"]},
             ]
             
             updates_made = 0
@@ -585,18 +585,32 @@ def main():
                 scores.loc[team_mask, "coach_total_bonus"] = coach_total_score
     
     scores["Total Event Attendance Bonus"] = scores["Total_Member_Points"] + scores["Total_Coach_Points"]
-    scores["Total_with_Bonus"] = scores["Total_Score"] + scores["bonus"] + scores["coach_total_bonus"]
+    scores["Total_with_Bonus"] = scores["Total_Score"] + scores["bonus"]
+    
+    # Fix attendance rates based on actual individual data
+    if len(individual_scores) > 0:
+        for index, team_row in scores.iterrows():
+            team_name = team_row["Team Name"]
+            total_members = team_row["Total Members"]
+            
+            # Get individual member data for this team
+            team_members = individual_scores[individual_scores["Team"] == team_name]
+            
+            if len(team_members) > 0:
+                # Calculate actual attendance rate: members with any points / total members
+                members_with_points = len(team_members[team_members["Points Earned"] > 0])
+                actual_attendance_rate = (members_with_points / total_members) * 100
+                scores.loc[index, "Member_Attendance_Rate"] = f"{actual_attendance_rate:.1f}%"
 
     
     tab1, tab2, tab3, tab4 = st.tabs(["Team Performance Overview", "Team Explorer", "Coach Explorer", "Admin Panel"])
 
     with tab1:
         st.subheader("📊 Team Performance Overview")
-        teams_display = scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "coach_total_bonus", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]].copy()
+        teams_display = scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]].copy()
         # Convert score columns to integers (no decimal places)
         teams_display["Total_Score"] = teams_display["Total_Score"].astype(int)
         teams_display["Total Event Attendance Bonus"] = teams_display["Total Event Attendance Bonus"].astype(int)
-        teams_display["coach_total_bonus"] = teams_display["coach_total_bonus"].astype(int)
         teams_display["bonus"] = teams_display["bonus"].astype(int)
         teams_display["Average_Score"] = teams_display["Average_Score"].astype(int)
         # Convert percentage columns to integers (remove decimal places)
@@ -632,11 +646,10 @@ def main():
                 team_info = masterlist[masterlist["Team Name"].str.contains(clean_selected, na=False, regex=False)]
         team_score = scores[scores["Team Name"] == selected_team]["Total_Score"].iloc[0]
         team_bonus = scores[scores["Team Name"] == selected_team]["bonus"].iloc[0]
-        team_coach_bonus = scores[scores["Team Name"] == selected_team]["coach_total_bonus"].iloc[0]
         team_total = scores[scores["Team Name"] == selected_team]["Total_with_Bonus"].iloc[0]
         team_attendance_bonus = scores[scores["Team Name"] == selected_team]["Total Event Attendance Bonus"].iloc[0]
         
-        st.write(f"**Team Score:** {int(team_score)} (Base) + {int(team_attendance_bonus)} (Attendance) + {int(team_coach_bonus)} (Coach Total) + {int(team_bonus)} (Admin Bonus) = {int(team_total)} (Total)")
+        st.write(f"**Team Score:** {int(team_score)} (Member + Coach Points) + {int(team_bonus)} (Admin Bonus) = {int(team_total)} (Total)")
         st.write("**Team Members:**")
         
         # Initialize all variables with defaults first
@@ -977,6 +990,11 @@ def main():
                 st.success("✅ Cache cleared - individual scores will be reloaded from Google Sheets")
                 st.info("🔄 Refresh the page to see latest data")
             
+            if st.button("🎯 Force Refresh All Data"):
+                st.cache_data.clear()
+                # Force reload by rerunning the app
+                st.rerun()
+            
             st.markdown("**Data Loading Status:**")
             st.write(f"Individual member scores loaded: {len(individual_scores)} records")
             st.write(f"Individual coach scores loaded: {len(individual_coach_scores)} records")
@@ -1021,6 +1039,15 @@ def main():
                     if len(individual_scores) == 0 and len(individual_coach_scores) == 0:
                         st.error("**❌ No individual scores loaded**")
                         st.write("Click 'Diagnose Google Sheets Access' to see what needs to be fixed.")
+            
+            if st.button("🎯 Manual Fix: Update Mariel & Christopher Attendance"):
+                if auto_fix_attendance_issues():
+                    st.success("✅ Successfully updated attendance records for Mariel Peñaflor and Christopher Lizada to show all 3 sessions!")
+                    st.info("📊 They should now each have 3 points (1 for each session)")
+                    st.cache_data.clear()
+                    st.info("🔄 Please refresh the page to see updated scores")
+                else:
+                    st.error("❌ Failed to update attendance records. Check Google Sheets permissions.")
             
             if st.button("🔧 Fix Alliance Team Name (Remove AJM)"):
                 try:
@@ -1163,8 +1190,8 @@ def main():
                     alliance_attendance_data = [
                         {"name": "Jovan Beato", "sessions": ["ADAM", "N8N"]},  # First 2 sessions
                         {"name": "Anthony John Matiling", "sessions": ["ADAM", "N8N"]},  # First 2 sessions  
-                        {"name": "Mariel Peñaflor", "sessions": ["ADAM"]},  # First session only
-                        {"name": "Christopher Lizada", "sessions": ["ADAM"]},  # First session only
+                        {"name": "Mariel Peñaflor", "sessions": ["ADAM", "N8N", "Claude"]},  # All 3 sessions - CORRECTED
+                        {"name": "Christopher Lizada", "sessions": ["ADAM", "N8N", "Claude"]},  # All 3 sessions - CORRECTED
                         {"name": "Celine Keisja Nebrija", "sessions": ["ADAM", "N8N", "Claude"]},  # All 3 sessions per your check
                     ]
                     
