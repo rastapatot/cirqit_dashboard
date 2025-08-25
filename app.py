@@ -74,6 +74,7 @@ def main():
 
     scores = scores.merge(bonus_df, how="left", left_on="Team Name", right_on="team_name")
     scores["bonus"] = scores["bonus"].fillna(0)
+    scores["Total Event Attendance Bonus"] = scores["Total_Member_Points"] + scores["Total_Coach_Points"]
     scores["Total_with_Bonus"] = scores["Total_Score"] + scores["bonus"]
 
     
@@ -81,12 +82,17 @@ def main():
 
     with tab1:
         st.subheader("📊 Team Performance Overview")
-        st.dataframe(scores[["Team Name", "Total_Score", "bonus", "Total_with_Bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
+        st.dataframe(scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
 
     with tab2:
         st.subheader("🔍 Team Explorer")
         selected_team = st.selectbox("Select a team", scores["Team Name"].dropna().unique())
         team_info = masterlist[masterlist["Team Name"] == selected_team]
+        team_score = scores[scores["Team Name"] == selected_team]["Total_Score"].iloc[0]
+        team_bonus = scores[scores["Team Name"] == selected_team]["bonus"].iloc[0]
+        team_total = scores[scores["Team Name"] == selected_team]["Total_with_Bonus"].iloc[0]
+        
+        st.write(f"**Team Score:** {team_score} (Base) + {team_bonus} (Bonus) = {team_total} (Total)")
         st.write("**Team Members:**")
         st.table(team_info[["Member Name", "Member Department"]])
         st.write("**Coach:**", team_info["Coach/Consultant"].iloc[0])
@@ -95,6 +101,14 @@ def main():
         st.subheader("🎓 Coach Explorer")
         selected_coach = st.selectbox("Select a coach", masterlist["Coach/Consultant"].dropna().unique())
         coach_teams = masterlist[masterlist["Coach/Consultant"] == selected_coach]
+        
+        # Get unique team names for this coach and their scores
+        coach_team_names = coach_teams["Team Name"].unique()
+        coach_team_scores = scores[scores["Team Name"].isin(coach_team_names)]
+        
+        st.write("**Team Scores for this coach:**")
+        st.table(coach_team_scores[["Team Name", "Total_Score", "bonus", "Total_with_Bonus"]])
+        
         st.write("**Teams under this coach:**")
         st.table(coach_teams[["Team Name", "Member Name", "Member Department"]])
 
