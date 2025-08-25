@@ -1022,6 +1022,7 @@ def main():
                         # Check if this member has attendance records
                         found_attendance = False
                         total_points = 0
+                        attendance_details = []
                         
                         for sheet_name, sheet_data in attendance.items():
                             if len(sheet_data) > 0 and 'Member Name' in sheet_data.columns:
@@ -1030,9 +1031,18 @@ def main():
                                     found_attendance = True
                                     if 'Points Earned' in member_records.columns:
                                         total_points = member_records['Points Earned'].sum()
+                                        # Show detailed breakdown
+                                        for _, record in member_records.iterrows():
+                                            session = record.get('Session', 'Unknown')
+                                            points = record.get('Points Earned', 0)
+                                            attendance_details.append(f"{session}:{points}")
                                     break
                         
-                        status = f"✅ {total_points} points" if found_attendance else "❌ Missing"
+                        if found_attendance:
+                            details_str = ", ".join(attendance_details) if attendance_details else "no details"
+                            status = f"✅ {total_points} points ({details_str})"
+                        else:
+                            status = "❌ Missing"
                         st.write(f"- {member_name}: {status}")
                     
                     # According to your raw data, Alliance members should have:
