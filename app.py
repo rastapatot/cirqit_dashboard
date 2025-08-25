@@ -599,6 +599,9 @@ def main():
         teams_display["coach_total_bonus"] = teams_display["coach_total_bonus"].astype(int)
         teams_display["bonus"] = teams_display["bonus"].astype(int)
         teams_display["Average_Score"] = teams_display["Average_Score"].astype(int)
+        # Convert percentage columns to integers (remove decimal places)
+        teams_display["Member_Attendance_Rate"] = teams_display["Member_Attendance_Rate"].str.replace('%', '').astype(float).astype(int).astype(str) + '%'
+        teams_display["Coach_Attendance_Rate"] = teams_display["Coach_Attendance_Rate"].str.replace('%', '').astype(float).astype(int).astype(str) + '%'
         # Sort by Total_Score descending (highest to lowest)
         teams_display = teams_display.sort_values("Total_Score", ascending=False).reset_index(drop=True)
         teams_display.index = teams_display.index + 1
@@ -729,7 +732,12 @@ def main():
         coach_team_scores = scores[scores["Team Name"].isin(coach_team_names)]
         
         st.write("**Team Scores for this coach:**")
-        st.table(coach_team_scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus"]].sort_values("Total_Score", ascending=False))
+        # Convert scores to integers for display
+        coach_team_display = coach_team_scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus"]].copy()
+        coach_team_display["Total_Score"] = coach_team_display["Total_Score"].astype(int)
+        coach_team_display["Total Event Attendance Bonus"] = coach_team_display["Total Event Attendance Bonus"].astype(int)
+        coach_team_display["bonus"] = coach_team_display["bonus"].astype(int)
+        st.table(coach_team_display.sort_values("Total_Score", ascending=False))
         
         # Merge team member info with individual scores and team data
         coach_teams_with_team_scores = coach_teams.merge(scores, on="Team Name", how="left")
@@ -743,10 +751,14 @@ def main():
                 how="left"
             )
             coach_teams_with_individual["Points Earned"] = coach_teams_with_individual["Points Earned"].fillna(0).astype(int)
+            coach_teams_with_individual["Total_Score"] = coach_teams_with_individual["Total_Score"].astype(int)
+            coach_teams_with_individual["Total_Member_Points"] = coach_teams_with_individual["Total_Member_Points"].astype(int)
             coach_teams_display = coach_teams_with_individual[["Team Name", "Total_Score", "Total_Member_Points", "Member Name", "Member Department", "Points Earned"]].sort_values(["Team Name", "Points Earned"], ascending=[True, False])
         else:
             # If individual scores unavailable, show 0 for all members
             coach_teams_display = coach_teams_with_team_scores[["Team Name", "Total_Score", "Total_Member_Points", "Member Name", "Member Department"]].sort_values(["Team Name", "Member Name"])
+            coach_teams_display["Total_Score"] = coach_teams_display["Total_Score"].astype(int)
+            coach_teams_display["Total_Member_Points"] = coach_teams_display["Total_Member_Points"].astype(int)
             coach_teams_display["Points Earned"] = 0
         
         # Display by teams option
