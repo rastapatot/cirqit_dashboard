@@ -85,7 +85,7 @@ def fix_duplicate_alliance_teams():
     return False
 
 def check_sheet_permissions():
-    """Check and display information about sheet access"""
+    """Check and display detailed information about sheet access"""
     try:
         import gspread
         from google.oauth2.service_account import Credentials
@@ -95,32 +95,68 @@ def check_sheet_permissions():
         credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
         gc = gspread.authorize(credentials)
         
+        # Get service account email for permission instructions
+        service_email = service_account_info.get("client_email", "Unknown")
+        
         sheets_to_check = [
-            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Attendance Sheet"},
-            {"id": "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo", "name": "Scores Sheet"},
-            {"id": "1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc", "name": "Masterlist Sheet"},
+            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Attendance Sheet", "url": "https://docs.google.com/spreadsheets/d/1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8"},
+            {"id": "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo", "name": "Scores Sheet", "url": "https://docs.google.com/spreadsheets/d/1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo"},
+            {"id": "1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc", "name": "Masterlist Sheet", "url": "https://docs.google.com/spreadsheets/d/1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc"},
         ]
         
         results = []
+        attendance_accessible = False
+        
         for sheet_info in sheets_to_check:
             try:
                 sheet = gc.open_by_key(sheet_info["id"])
                 worksheets = [ws.title for ws in sheet.worksheets()]
+                
+                # Check for specific attendance worksheets
+                has_member_attendance = any('member' in ws.lower() and 'attendance' in ws.lower() for ws in worksheets)
+                has_coach_attendance = any('coach' in ws.lower() and 'attendance' in ws.lower() for ws in worksheets)
+                
+                if sheet_info["name"] == "Attendance Sheet":
+                    attendance_accessible = True
+                
                 results.append({
                     "name": sheet_info["name"],
                     "status": "✅ Accessible",
-                    "worksheets": worksheets
+                    "worksheets": worksheets,
+                    "url": sheet_info["url"],
+                    "has_member_attendance": has_member_attendance,
+                    "has_coach_attendance": has_coach_attendance
                 })
             except Exception as e:
+                error_msg = str(e)
+                if "does not have permission" in error_msg or "403" in error_msg:
+                    status = f"❌ Permission Denied - Service account needs Editor access"
+                elif "not found" in error_msg or "404" in error_msg:
+                    status = f"❌ Sheet Not Found - Invalid ID"
+                else:
+                    status = f"❌ Error: {error_msg[:50]}..."
+                
                 results.append({
                     "name": sheet_info["name"],
-                    "status": f"❌ Error: {str(e)[:50]}...",
-                    "worksheets": []
+                    "status": status,
+                    "worksheets": [],
+                    "url": sheet_info["url"],
+                    "has_member_attendance": False,
+                    "has_coach_attendance": False
                 })
         
-        return results
+        return {
+            "results": results,
+            "service_email": service_email,
+            "attendance_accessible": attendance_accessible
+        }
+        
     except Exception as e:
-        return [{"name": "All Sheets", "status": f"❌ General Error: {str(e)}", "worksheets": []}]
+        return {
+            "results": [{"name": "All Sheets", "status": f"❌ General Error: {str(e)}", "worksheets": [], "url": "", "has_member_attendance": False, "has_coach_attendance": False}],
+            "service_email": "Unknown",
+            "attendance_accessible": False
+        }
 
 @st.cache_data
 def load_data():
@@ -222,16 +258,6 @@ def get_individual_member_scores():
             except Exception as e:
                 continue  # Try next configuration
         
-        # If all else fails, try to load from local Excel file as backup
-        try:
-            member_df = pd.read_excel('CirQit-TC-Attendance-AsOf-2025-08-23.xlsx', sheet_name='Member Attendance')
-            if len(member_df) > 0 and 'Points Earned' in member_df.columns:
-                member_df['Points Earned'] = pd.to_numeric(member_df['Points Earned'], errors='coerce').fillna(0)
-                individual_scores = member_df.groupby(['Team', 'Member Name'])['Points Earned'].sum().reset_index()
-                st.info("🔄 Using local Excel file for member scores (Google Sheets unavailable)")
-                return individual_scores
-        except:
-            pass
         
         st.error("❌ Could not load individual member scores from any source")
         return pd.DataFrame()
@@ -326,16 +352,6 @@ def get_individual_coach_scores():
             except Exception as e:
                 continue  # Try next configuration
         
-        # If all else fails, try to load from local Excel file as backup
-        try:
-            coach_df = pd.read_excel('CirQit-TC-Attendance-AsOf-2025-08-23.xlsx', sheet_name='Coach Attendance')
-            if len(coach_df) > 0 and 'Points Earned' in coach_df.columns:
-                coach_df['Points Earned'] = pd.to_numeric(coach_df['Points Earned'], errors='coerce').fillna(0)
-                individual_coach_scores = coach_df.groupby(['Team', 'Coach Name'])['Points Earned'].sum().reset_index()
-                st.info("🔄 Using local Excel file for coach scores (Google Sheets unavailable)")
-                return individual_coach_scores
-        except:
-            pass
         
         return pd.DataFrame()
         
@@ -612,15 +628,31 @@ def main():
             
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Check Google Sheets Access"):
-                    results = check_sheet_permissions()
-                    for result in results:
+                if st.button("🔍 Diagnose Google Sheets Access"):
+                    permission_info = check_sheet_permissions()
+                    
+                    st.write(f"**Service Account Email:** `{permission_info['service_email']}`")
+                    st.write("**Sheet Access Status:**")
+                    
+                    for result in permission_info['results']:
                         st.write(f"**{result['name']}**: {result['status']}")
                         if result['worksheets']:
                             st.write(f"Worksheets: {', '.join(result['worksheets'])}")
+                            if result['name'] == 'Attendance Sheet':
+                                st.write(f"• Has Member Attendance: {'✅' if result['has_member_attendance'] else '❌'}")
+                                st.write(f"• Has Coach Attendance: {'✅' if result['has_coach_attendance'] else '❌'}")
+                        
+                        if '❌' in result['status']:
+                            st.error(f"**TO FIX {result['name']}:**")
+                            st.write(f"1. Open: {result['url']}")
+                            st.write(f"2. Click 'Share' button")
+                            st.write(f"3. Add email: `{permission_info['service_email']}`")
+                            st.write("4. Set permission to 'Editor'")
+                            st.write("5. Click 'Send'")
+                        st.write("---")
             
             with col2:
-                if st.button("Show Sample Individual Scores"):
+                if st.button("📊 Show Sample Individual Scores"):
                     if len(individual_scores) > 0:
                         st.write("**Member Scores Sample:**")
                         st.dataframe(individual_scores.head(10))
@@ -628,7 +660,8 @@ def main():
                         st.write("**Coach Scores Sample:**")
                         st.dataframe(individual_coach_scores.head(10))
                     if len(individual_scores) == 0 and len(individual_coach_scores) == 0:
-                        st.error("No individual scores loaded from any source")
+                        st.error("**❌ No individual scores loaded**")
+                        st.write("Click 'Diagnose Google Sheets Access' to see what needs to be fixed.")
             
         else:
             st.info("Enter the correct password to access admin features.")
