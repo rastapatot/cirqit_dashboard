@@ -75,11 +75,10 @@ def main():
     bonus_df = get_bonus_points()
 
     scores = scores.merge(bonus_df, how="left", left_on="Team Name", right_on="team_name")
-    scores = scores.rename(columns={"bonus": "Additional Bonus Points", "Total_Score": "TOTAL"})
-scores["Attendance Points"] = scores["TOTAL"] + scores["Additional Bonus Points"]
+    scores["Total Score (with Bonus)"] = scores["Total_Score"] + scores["bonus"]
 
     st.subheader("📊 Team Performance Overview")
-    st.dataframe(scores[["Team Name", "TOTAL", "Additional Bonus Points", "Attendance Points", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
+    st.dataframe(scores[["Team Name", "Total_Score", "bonus", "Total Score (with Bonus)", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
 
     st.subheader("🔍 Team Explorer")
     selected_team = st.selectbox("Select a team", scores["Team Name"].dropna().unique())
