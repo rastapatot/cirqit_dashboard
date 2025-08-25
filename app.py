@@ -478,6 +478,18 @@ def main():
         st.subheader("🔍 Team Explorer")
         selected_team = st.selectbox("Select a team", sorted(scores["Team Name"].dropna().unique()))
         team_info = masterlist[masterlist["Team Name"] == selected_team]
+        
+        # Debug: Show team matching information
+        if st.checkbox("Debug: Show team matching info"):
+            st.write(f"Selected team: '{selected_team}'")
+            st.write(f"Teams found in masterlist: {len(team_info)}")
+            if len(team_info) > 0:
+                st.write("Team members found:")
+                st.dataframe(team_info[["Member Name", "Coach/Consultant"]])
+            else:
+                st.write("Available teams in masterlist:")
+                available_teams = masterlist["Team Name"].unique()
+                st.write([t for t in available_teams if "Alliance" in t])
         team_score = scores[scores["Team Name"] == selected_team]["Total_Score"].iloc[0]
         team_bonus = scores[scores["Team Name"] == selected_team]["bonus"].iloc[0]
         team_coach_bonus = scores[scores["Team Name"] == selected_team]["coach_total_bonus"].iloc[0]
@@ -859,6 +871,39 @@ def main():
                     if len(individual_scores) == 0 and len(individual_coach_scores) == 0:
                         st.error("**❌ No individual scores loaded**")
                         st.write("Click 'Diagnose Google Sheets Access' to see what needs to be fixed.")
+            
+            if st.button("🔧 Fix Alliance Team Name (Remove AJM)"):
+                try:
+                    import gspread
+                    from google.oauth2.service_account import Credentials
+                    
+                    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+                    service_account_info = st.secrets["google"]
+                    credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+                    gc = gspread.authorize(credentials)
+                    
+                    MASTERLIST_SHEET_ID = "1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc"
+                    masterlist_sheet = gc.open_by_key(MASTERLIST_SHEET_ID)
+                    worksheet = masterlist_sheet.sheet1
+                    
+                    # Get all data
+                    all_values = worksheet.get_all_values()
+                    
+                    # Find and replace "Alliance of Just Minds(AJM)" with "Alliance of Just Minds"
+                    changes_made = 0
+                    for i, row in enumerate(all_values):
+                        for j, cell in enumerate(row):
+                            if "Alliance of Just Minds(AJM)" in cell:
+                                new_value = cell.replace("Alliance of Just Minds(AJM)", "Alliance of Just Minds")
+                                worksheet.update_cell(i + 1, j + 1, new_value)
+                                changes_made += 1
+                    
+                    st.success(f"✅ Fixed {changes_made} cells in Google Sheets masterlist")
+                    st.info("🔄 Please refresh the page to see updated data")
+                    st.cache_data.clear()
+                    
+                except Exception as e:
+                    st.error(f"❌ Error fixing team names: {str(e)}")
             
             if st.button("🔍 Explore All Sheets for Individual Data"):
                 try:
