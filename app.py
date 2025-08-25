@@ -86,20 +86,24 @@ def main():
 
     with tab2:
         st.subheader("🔍 Team Explorer")
-        selected_team = st.selectbox("Select a team", scores["Team Name"].dropna().unique())
+        selected_team = st.selectbox("Select a team", sorted(scores["Team Name"].dropna().unique()))
         team_info = masterlist[masterlist["Team Name"] == selected_team]
         team_score = scores[scores["Team Name"] == selected_team]["Total_Score"].iloc[0]
         team_bonus = scores[scores["Team Name"] == selected_team]["bonus"].iloc[0]
         team_total = scores[scores["Team Name"] == selected_team]["Total_with_Bonus"].iloc[0]
+        team_attendance_bonus = scores[scores["Team Name"] == selected_team]["Total Event Attendance Bonus"].iloc[0]
         
-        st.write(f"**Team Score:** {team_score} (Base) + {team_bonus} (Bonus) = {team_total} (Total)")
+        st.write(f"**Team Score:** {team_score} (Base) + {team_attendance_bonus} (Attendance) + {team_bonus} (Bonus) = {team_total} (Total)")
         st.write("**Team Members:**")
-        st.table(team_info[["Member Name", "Member Department"]])
+        # Merge team member info with their individual scores
+        team_info_with_scores = team_info.merge(scores, on="Team Name", how="left")
+        team_members_display = team_info_with_scores[["Total_Member_Points", "Member Name", "Member Department"]].sort_values("Member Name")
+        st.table(team_members_display)
         st.write("**Coach:**", team_info["Coach/Consultant"].iloc[0])
 
     with tab3:
         st.subheader("🎓 Coach Explorer")
-        selected_coach = st.selectbox("Select a coach", masterlist["Coach/Consultant"].dropna().unique())
+        selected_coach = st.selectbox("Select a coach", sorted(masterlist["Coach/Consultant"].dropna().unique()))
         coach_teams = masterlist[masterlist["Coach/Consultant"] == selected_coach]
         
         # Get unique team names for this coach and their scores
@@ -107,10 +111,45 @@ def main():
         coach_team_scores = scores[scores["Team Name"].isin(coach_team_names)]
         
         st.write("**Team Scores for this coach:**")
-        st.table(coach_team_scores[["Team Name", "Total_Score", "bonus", "Total_with_Bonus"]])
+        st.table(coach_team_scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus"]])
         
-        st.write("**Teams under this coach:**")
-        st.table(coach_teams[["Team Name", "Member Name", "Member Department"]])
+        # Merge team member info with their individual scores
+        coach_teams_with_scores = coach_teams.merge(scores, on="Team Name", how="left")
+        coach_teams_display = coach_teams_with_scores[["Team Name", "Total_Member_Points", "Member Name", "Member Department"]].sort_values(["Team Name", "Member Name"])
+        
+        # Display by teams option
+        display_option = st.radio("Display format:", ["All Members", "Grouped by Teams"])
+        
+        if display_option == "Grouped by Teams":
+            st.write("**Teams and Members:**")
+            for team in sorted(coach_team_names):
+                team_members = coach_teams_display[coach_teams_display["Team Name"] == team]
+                st.write(f"**{team}**")
+                st.table(team_members[["Total_Member_Points", "Member Name", "Member Department"]])
+        else:
+            st.write("**All Members under this coach:**")
+            st.table(coach_teams_display)
+        
+        # CSV Export functionality
+        st.write("**Export Data:**")
+        export_option = st.selectbox("Select data to export:", 
+                                   ["Team Scores Only", "All Member Details", "Selected Team Only"])
+        
+        if export_option == "Team Scores Only":
+            export_data = coach_team_scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus"]]
+        elif export_option == "All Member Details":
+            export_data = coach_teams_display
+        else:  # Selected Team Only
+            selected_team_export = st.selectbox("Select team to export:", sorted(coach_team_names))
+            export_data = coach_teams_display[coach_teams_display["Team Name"] == selected_team_export]
+        
+        csv_data = export_data.to_csv(index=False)
+        st.download_button(
+            label=f"Download {export_option} as CSV",
+            data=csv_data,
+            file_name=f"{selected_coach}_{export_option.replace(' ', '_')}.csv",
+            mime="text/csv"
+        )
 
     with tab4:
         st.subheader("🔐 Admin Panel: Award Bonus Points")
