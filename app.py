@@ -72,14 +72,15 @@ def main():
     bonus_df = get_bonus_points()
 
     scores = scores.merge(bonus_df, how="left", left_on="Team Name", right_on="team_name")
-    scores["Attendance Points"] = scores["TOTAL"] + scores["Additional Bonus Points"]
+    scores["bonus"] = scores["bonus"].fillna(0)
+    scores["Total_with_Bonus"] = scores["Total_Score"] + scores["bonus"]
 
     
     tab1, tab2, tab3, tab4 = st.tabs(["Team Performance Overview", "Team Explorer", "Coach Explorer", "Admin Panel"])
 
     with tab1:
         st.subheader("📊 Team Performance Overview")
-        st.dataframe(scores[["Team Name", "TOTAL", "Additional Bonus Points", "Attendance Points", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
+        st.dataframe(scores[["Team Name", "Total_Score", "bonus", "Total_with_Bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
 
     with tab2:
         st.subheader("🔍 Team Explorer")
