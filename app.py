@@ -39,6 +39,113 @@ def ensure_teams_in_db(team_names):
     conn.commit()
     conn.close()
 
+def create_individual_attendance_sheets():
+    """Create individual member and coach attendance worksheets from existing team data"""
+    import gspread
+    from google.oauth2.service_account import Credentials
+    import pandas as pd
+    
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+    service_account_info = st.secrets["google"]
+    credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+    gc = gspread.authorize(credentials)
+    
+    try:
+        # Get data from existing sheets
+        scores_sheet = gc.open_by_key("1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo")
+        masterlist_sheet = gc.open_by_key("1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc")
+        attendance_sheet = gc.open_by_key("1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8")
+        
+        scores_data = pd.DataFrame(scores_sheet.sheet1.get_all_records())
+        masterlist_data = pd.DataFrame(masterlist_sheet.sheet1.get_all_records())
+        
+        # Create individual member attendance records
+        member_records = []
+        coach_records = []
+        
+        for _, team_row in scores_data.iterrows():
+            team_name = team_row.get('Team Name', '')
+            
+            # Get team members and coach
+            team_info = masterlist_data[masterlist_data['Team Name'] == team_name]
+            if len(team_info) == 0:
+                continue
+                
+            coach_name = team_info.iloc[0].get('Coach/Consultant', '')
+            coach_dept = team_info.iloc[0].get('Coach Department', 'Coach')
+            
+            # Tech sharing sessions data
+            sessions = [
+                {'name': 'TechSharing2-ADAM', 'members': team_row.get('TechSharing2-ADAM_Members', 0), 'coaches': team_row.get('TechSharing2-ADAM_Coaches', 0)},
+                {'name': 'TechSharing3-N8N', 'members': team_row.get('TechSharing3-N8N_Members', 0), 'coaches': team_row.get('TechSharing3-N8N_Coaches', 0)},
+                {'name': 'TechSharing3.1-Claude', 'members': team_row.get('TechSharing3.1-Claude_Members', 0), 'coaches': team_row.get('TechSharing3.1-Claude_Coaches', 0)},
+            ]
+            
+            # Create member records - distribute attendance among team members
+            team_members = team_info['Member Name'].tolist()
+            for session in sessions:
+                attended_count = int(session['members']) if session['members'] else 0
+                
+                # For now, assume first N members attended (can be manually corrected later)
+                for i, member_name in enumerate(team_members):
+                    points_earned = 1 if i < attended_count else 0
+                    member_records.append({
+                        'Member Name': member_name,
+                        'Department': team_info.iloc[i].get('Member Department', ''),
+                        'Team': team_name,
+                        'Session': session['name'],
+                        'Day Session': 'Day',  # Default - can be updated
+                        'Night Session': '',
+                        'Sessions Attended': 'Day' if points_earned > 0 else '',
+                        'Points Earned': points_earned
+                    })
+            
+            # Create coach records
+            for session in sessions:
+                attended = int(session['coaches']) if session['coaches'] else 0
+                points_earned = attended  # Coaches get points equal to attendance count
+                
+                if points_earned > 0:
+                    coach_records.append({
+                        'Coach Name': coach_name,
+                        'Department': coach_dept,
+                        'Team': team_name,
+                        'Session': session['name'],
+                        'Day Session': 'Day',
+                        'Night Session': '',
+                        'Sessions Attended': 'Day',
+                        'Points Earned': points_earned
+                    })
+        
+        # Create or update Member Attendance worksheet
+        member_df = pd.DataFrame(member_records)
+        try:
+            member_ws = attendance_sheet.worksheet("Member Attendance")
+            member_ws.clear()
+        except:
+            member_ws = attendance_sheet.add_worksheet(title="Member Attendance", rows=len(member_df)+1, cols=len(member_df.columns))
+        
+        # Update member worksheet
+        if len(member_df) > 0:
+            member_ws.update([member_df.columns.tolist()] + member_df.values.tolist())
+        
+        # Create or update Coach Attendance worksheet  
+        coach_df = pd.DataFrame(coach_records)
+        try:
+            coach_ws = attendance_sheet.worksheet("Coach Attendance")
+            coach_ws.clear()
+        except:
+            coach_ws = attendance_sheet.add_worksheet(title="Coach Attendance", rows=len(coach_df)+1, cols=len(coach_df.columns))
+        
+        # Update coach worksheet
+        if len(coach_df) > 0:
+            coach_ws.update([coach_df.columns.tolist()] + coach_df.values.tolist())
+            
+        return True, len(member_records), len(coach_records)
+        
+    except Exception as e:
+        return False, 0, 0
+
 def fix_duplicate_alliance_teams():
     import gspread
     from google.oauth2.service_account import Credentials
@@ -696,8 +803,54 @@ def main():
                 except Exception as e:
                     st.error(f"❌ Error fixing teams: {str(e)}")
             
+            st.markdown("**Create Individual Attendance Data:**")
+            if st.button("🏗️ Create Individual Attendance Worksheets"):
+                try:
+                    success, member_count, coach_count = create_individual_attendance_sheets()
+                    if success:
+                        st.success(f"✅ Successfully created individual attendance worksheets!")
+                        st.info(f"📊 Created {member_count} member records and {coach_count} coach records")
+                        st.warning("⚠️ Initial records use estimated attendance based on team counts. Please manually correct the attendance records in Google Sheets for accuracy.")
+                        st.info("🔄 Refresh the page to load individual scores")
+                        st.cache_data.clear()
+                    else:
+                        st.error("❌ Failed to create individual attendance worksheets")
+                except Exception as e:
+                    st.error(f"❌ Error creating worksheets: {str(e)}")
+            
             st.markdown("**Update Event Data:**")
-            st.info("📝 Event attendance update functionality can be added here for future events")
+            st.write("**Add New Event Attendance:**")
+            
+            with st.expander("➕ Add New Tech Sharing Session"):
+                new_event_name = st.text_input("Event Name (e.g., 'TechSharing4-NextJS')")
+                
+                if new_event_name:
+                    st.write("**Team Attendance for New Event:**")
+                    teams = scores["Team Name"].dropna().unique()
+                    
+                    # Create form for updating attendance
+                    if st.button(f"📝 Open Attendance Form for {new_event_name}"):
+                        st.info(f"""
+                        **To add attendance for {new_event_name}:**
+                        
+                        1. **Update Team Scores Sheet:**
+                           - Add new columns: `{new_event_name}_Members`, `{new_event_name}_Coaches`, `{new_event_name}_Score`
+                           - Fill in attendance counts for each team
+                        
+                        2. **Update Individual Attendance Sheets:**
+                           - Go to Member Attendance and Coach Attendance worksheets
+                           - Add new rows for each person who attended {new_event_name}
+                           - Set Session = '{new_event_name}', Points Earned = 1
+                        
+                        3. **Refresh Dashboard:**
+                           - Come back here and refresh to see updated scores
+                        """)
+            
+            st.write("**Bulk Update from Google Sheets:**")
+            if st.button("🔄 Refresh Individual Scores from Sheets"):
+                st.cache_data.clear()
+                st.success("✅ Cache cleared - individual scores will be reloaded from Google Sheets")
+                st.info("🔄 Refresh the page to see latest data")
             
             st.markdown("**Data Loading Status:**")
             st.write(f"Individual member scores loaded: {len(individual_scores)} records")
