@@ -3,7 +3,7 @@ import pandas as pd
 import sqlite3
 from datetime import datetime
 
-ADMIN_PASSWORD = st.secrets["admin_password"]
+ADMIN_PASSWORD = "cirqit2024"  # Hardcoded password for Streamlit Cloud
 DB_FILE = "cirqit_dashboard.db"
 
 def init_db():
