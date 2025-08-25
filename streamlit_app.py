@@ -12,7 +12,12 @@ from database import DatabaseManager, DataMigration
 from services import ScoringService, EventManagementService
 
 # Configuration
-ADMIN_PASSWORD = st.secrets["admin_password"]
+try:
+    ADMIN_PASSWORD = st.secrets["admin_password"]
+except KeyError:
+    ADMIN_PASSWORD = "cirqit2024"  # Default password for deployment
+    st.warning("⚠️ Using default admin password. Please configure 'admin_password' in Streamlit Cloud secrets for security.")
+
 DB_FILE = "cirqit_dashboard.db"
 
 @st.cache_resource
