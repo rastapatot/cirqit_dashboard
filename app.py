@@ -346,11 +346,27 @@ def calculate_individual_scores_from_team_data(scores_df, masterlist_df):
 
 @st.cache_data
 def get_individual_member_scores():
-    """Calculate individual member scores directly from team attendance data"""
+    """Get individual member scores from actual Google Sheets attendance data"""
     try:
-        # Load the team scores and masterlist data
+        # Load actual attendance data from Google Sheets
         attendance, scores, masterlist = load_data()
-        return calculate_individual_scores_from_team_data(scores, masterlist)
+        
+        # Try to find individual member attendance data in Google Sheets
+        for sheet_name, sheet_data in attendance.items():
+            if len(sheet_data) > 0 and 'Member Name' in sheet_data.columns and 'Points Earned' in sheet_data.columns:
+                # Found actual individual attendance data - use it!
+                if 'Team' in sheet_data.columns:
+                    # Sum points per member per team
+                    individual_scores = sheet_data.groupby(['Team', 'Member Name'])['Points Earned'].sum().reset_index()
+                    return individual_scores
+                elif 'Team Name' in sheet_data.columns:
+                    # Alternative column name
+                    sheet_data_renamed = sheet_data.rename(columns={'Team Name': 'Team'})
+                    individual_scores = sheet_data_renamed.groupby(['Team', 'Member Name'])['Points Earned'].sum().reset_index()
+                    return individual_scores
+        
+        # If no proper individual data found, return empty (don't use fake logic)
+        return pd.DataFrame()
     except Exception as e:
         return pd.DataFrame()
 
@@ -411,10 +427,26 @@ def calculate_individual_coach_scores_from_team_data(scores_df, masterlist_df):
 
 @st.cache_data  
 def get_individual_coach_scores():
-    """Calculate individual coach scores directly from team attendance data"""
+    """Get individual coach scores from actual Google Sheets attendance data"""
     try:
-        # Load the team scores and masterlist data
+        # Load actual attendance data from Google Sheets
         attendance, scores, masterlist = load_data()
+        
+        # Try to find individual coach attendance data in Google Sheets
+        for sheet_name, sheet_data in attendance.items():
+            if len(sheet_data) > 0 and 'Coach Name' in sheet_data.columns and 'Points Earned' in sheet_data.columns:
+                # Found actual individual coach attendance data - use it!
+                if 'Team' in sheet_data.columns:
+                    # Sum points per coach per team
+                    coach_scores = sheet_data.groupby(['Team', 'Coach Name'])['Points Earned'].sum().reset_index()
+                    return coach_scores
+                elif 'Team Name' in sheet_data.columns:
+                    # Alternative column name
+                    sheet_data_renamed = sheet_data.rename(columns={'Team Name': 'Team'})
+                    coach_scores = sheet_data_renamed.groupby(['Team', 'Coach Name'])['Points Earned'].sum().reset_index()
+                    return coach_scores
+        
+        # If no proper individual coach data found, fall back to calculated scores
         return calculate_individual_coach_scores_from_team_data(scores, masterlist)
     except Exception as e:
         return pd.DataFrame()
