@@ -102,7 +102,7 @@ def create_individual_attendance_sheets():
             # Create coach records
             for session in sessions:
                 attended = int(session['coaches']) if session['coaches'] else 0
-                points_earned = attended  # Coaches get points equal to attendance count
+                points_earned = attended * 2  # Coaches get 2 points per session attended
                 
                 if points_earned > 0:
                     coach_records.append({
@@ -295,8 +295,12 @@ def calculate_individual_scores_from_team_data(scores_df, masterlist_df):
     for _, team_row in scores_df.iterrows():
         team_name = team_row.get('Team Name', '')
         
-        # Get team members
+        # Handle team name variations (like "Alliance of Just Minds" vs "Alliance of Just Minds(AJM)")
         team_info = masterlist_df[masterlist_df['Team Name'] == team_name]
+        if len(team_info) == 0:
+            # Try to find team with similar name (remove parentheses)
+            clean_team_name = team_name.split('(')[0].strip()
+            team_info = masterlist_df[masterlist_df['Team Name'].str.contains(clean_team_name, na=False, regex=False)]
         if len(team_info) == 0:
             continue
             
@@ -309,6 +313,9 @@ def calculate_individual_scores_from_team_data(scores_df, masterlist_df):
             {'name': 'TechSharing3.1-Claude', 'members': team_row.get('TechSharing3.1-Claude_Members', 0)},
         ]
         
+        # Use the actual team name from masterlist for consistency
+        actual_team_name = team_info['Team Name'].iloc[0] if len(team_info) > 0 else team_name
+        
         # Distribute attendance among team members
         for session in sessions:
             attended_count = int(session['members']) if session['members'] else 0
@@ -317,7 +324,7 @@ def calculate_individual_scores_from_team_data(scores_df, masterlist_df):
             for i, member_name in enumerate(team_members):
                 points_earned = 1 if i < attended_count else 0
                 individual_records.append({
-                    'Team': team_name,
+                    'Team': actual_team_name,
                     'Member Name': member_name,
                     'Session': session['name'],
                     'Points Earned': points_earned
@@ -348,8 +355,12 @@ def calculate_individual_coach_scores_from_team_data(scores_df, masterlist_df):
     for _, team_row in scores_df.iterrows():
         team_name = team_row.get('Team Name', '')
         
-        # Get team coach info
+        # Handle team name variations (like "Alliance of Just Minds" vs "Alliance of Just Minds(AJM)")
         team_info = masterlist_df[masterlist_df['Team Name'] == team_name]
+        if len(team_info) == 0:
+            # Try to find team with similar name (remove parentheses)
+            clean_team_name = team_name.split('(')[0].strip()
+            team_info = masterlist_df[masterlist_df['Team Name'].str.contains(clean_team_name, na=False, regex=False)]
         if len(team_info) == 0:
             continue
             
@@ -364,15 +375,18 @@ def calculate_individual_coach_scores_from_team_data(scores_df, masterlist_df):
             {'name': 'TechSharing3.1-Claude', 'coaches': team_row.get('TechSharing3.1-Claude_Coaches', 0)},
         ]
         
+        # Use the actual team name from masterlist for consistency
+        actual_team_name = team_info['Team Name'].iloc[0] if len(team_info) > 0 else team_name
+        
         # Create coach records based on attendance
         for session in sessions:
             attended = int(session['coaches']) if session['coaches'] else 0
             if attended > 0:  # Coach attended this session
                 coach_records.append({
-                    'Team': team_name,
+                    'Team': actual_team_name,
                     'Coach Name': coach_name,
                     'Session': session['name'],
-                    'Points Earned': attended  # Coaches get points equal to attendance count
+                    'Points Earned': attended * 2  # Coaches get 2 points per session attended
                 })
     
     if coach_records:
@@ -415,15 +429,36 @@ def main():
 
     scores = scores.merge(bonus_df, how="left", left_on="Team Name", right_on="team_name")
     scores["bonus"] = scores["bonus"].fillna(0)
+    
+    # Add coach total scores to each team they manage
+    scores["coach_total_bonus"] = 0
+    if len(individual_coach_scores) > 0:
+        # Calculate each coach's total score across all teams
+        coach_totals = individual_coach_scores.groupby("Coach Name")["Points Earned"].sum().reset_index()
+        coach_totals.columns = ["Coach Name", "Coach Total Score"]
+        
+        # Add coach total score to each team they manage
+        for _, coach_row in coach_totals.iterrows():
+            coach_name = coach_row["Coach Name"]
+            coach_total_score = coach_row["Coach Total Score"]
+            
+            # Find all teams this coach manages
+            coach_teams = masterlist[masterlist["Coach/Consultant"] == coach_name]["Team Name"].unique()
+            
+            # Add coach's total score to each team they manage
+            for team_name in coach_teams:
+                team_mask = scores["Team Name"] == team_name
+                scores.loc[team_mask, "coach_total_bonus"] = coach_total_score
+    
     scores["Total Event Attendance Bonus"] = scores["Total_Member_Points"] + scores["Total_Coach_Points"]
-    scores["Total_with_Bonus"] = scores["Total_Score"] + scores["bonus"]
+    scores["Total_with_Bonus"] = scores["Total_Score"] + scores["bonus"] + scores["coach_total_bonus"]
 
     
     tab1, tab2, tab3, tab4 = st.tabs(["Team Performance Overview", "Team Explorer", "Coach Explorer", "Admin Panel"])
 
     with tab1:
         st.subheader("📊 Team Performance Overview")
-        teams_display = scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]].reset_index(drop=True)
+        teams_display = scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "coach_total_bonus", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]].reset_index(drop=True)
         teams_display.index = teams_display.index + 1
         st.dataframe(teams_display)
 
@@ -433,10 +468,11 @@ def main():
         team_info = masterlist[masterlist["Team Name"] == selected_team]
         team_score = scores[scores["Team Name"] == selected_team]["Total_Score"].iloc[0]
         team_bonus = scores[scores["Team Name"] == selected_team]["bonus"].iloc[0]
+        team_coach_bonus = scores[scores["Team Name"] == selected_team]["coach_total_bonus"].iloc[0]
         team_total = scores[scores["Team Name"] == selected_team]["Total_with_Bonus"].iloc[0]
         team_attendance_bonus = scores[scores["Team Name"] == selected_team]["Total Event Attendance Bonus"].iloc[0]
         
-        st.write(f"**Team Score:** {team_score} (Base) + {team_attendance_bonus} (Attendance) + {team_bonus} (Bonus) = {team_total} (Total)")
+        st.write(f"**Team Score:** {team_score} (Base) + {team_attendance_bonus} (Attendance) + {team_coach_bonus} (Coach Total) + {team_bonus} (Admin Bonus) = {team_total} (Total)")
         st.write("**Team Members:**")
         
         # Initialize all variables with defaults first
@@ -456,15 +492,12 @@ def main():
             coach_name = ""
             coach_dept = "Coach"
         
-        # Get coach individual score
+        # Get coach total score across ALL teams they manage
         try:
             if len(individual_coach_scores) > 0 and coach_name:
-                coach_score_data = individual_coach_scores[
-                    (individual_coach_scores["Team"] == selected_team) & 
-                    (individual_coach_scores["Coach Name"] == coach_name)
-                ]
-                if len(coach_score_data) > 0:
-                    coach_points = float(coach_score_data.iloc[0]["Points Earned"])
+                coach_all_scores = individual_coach_scores[individual_coach_scores["Coach Name"] == coach_name]
+                if len(coach_all_scores) > 0:
+                    coach_points = float(coach_all_scores["Points Earned"].sum())
         except Exception:
             coach_points = 0
         
@@ -580,12 +613,9 @@ def main():
                 
                 try:
                     if len(individual_coach_scores) > 0 and selected_coach:
-                        coach_score_data = individual_coach_scores[
-                            (individual_coach_scores["Team"] == team) & 
-                            (individual_coach_scores["Coach Name"] == selected_coach)
-                        ]
-                        if len(coach_score_data) > 0:
-                            coach_points = float(coach_score_data.iloc[0]["Points Earned"])
+                        coach_all_scores = individual_coach_scores[individual_coach_scores["Coach Name"] == selected_coach]
+                        if len(coach_all_scores) > 0:
+                            coach_points = float(coach_all_scores["Points Earned"].sum())
                 except Exception:
                     coach_points = 0
                 
