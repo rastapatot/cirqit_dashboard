@@ -75,4 +75,7 @@ def main():
     scores.rename(columns={"bonus": "Bonus_Points", "Average_Score": "Average_Score_Per_Event"}, inplace=True)
 
     st.subheader("📊 Team Performance Overview")
-    st.dataframe(scores[["Team Name", "Total_Score", "Bonus
+    st.dataframe(scores[["Team Name", "Total_Score", "Bonus_Points"]])
+
+if __name__ == "__main__":
+    main()
