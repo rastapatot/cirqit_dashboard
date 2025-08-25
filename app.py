@@ -64,7 +64,13 @@ def load_data():
     return attendance, scores, masterlist
 def main():
     st.set_page_config("CirQit Hackathon Dashboard", layout="wide")
-    st.title("🚀 CirQit Hackathon Dashboard")
+    
+    # Display logo and title
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        st.image("CirQit_Logo.png", width=100)
+    with col2:
+        st.title("CirQit Hackathon Dashboard")
 
     init_db()
     attendance, scores, masterlist = load_data()
@@ -97,8 +103,14 @@ def main():
         st.write("**Team Members:**")
         # Merge team member info with their individual scores
         team_info_with_scores = team_info.merge(scores, on="Team Name", how="left")
-        team_members_display = team_info_with_scores[["Total_Member_Points", "Member Name", "Member Department"]].sort_values("Member Name")
-        st.table(team_members_display)
+        team_members_display = team_info_with_scores[["Member Name", "Member Department", "Total_Member_Points"]].sort_values("Member Name")
+        st.dataframe(team_members_display, 
+                    column_config={
+                        "Member Name": st.column_config.Column("Member Name", width="medium"),
+                        "Member Department": st.column_config.Column("Member Department", width="medium"),
+                        "Total_Member_Points": st.column_config.Column("Points", width="small")
+                    },
+                    hide_index=True)
         st.write("**Coach:**", team_info["Coach/Consultant"].iloc[0])
 
     with tab3:
