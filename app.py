@@ -68,19 +68,43 @@ def main():
 
     init_db()
     attendance, scores, masterlist = load_data()
+    
+    # Debug: Show column names
+    st.write("**Debug - Scores columns:**", list(scores.columns))
+    st.write("**Debug - Masterlist columns:**", list(masterlist.columns))
+    
     ensure_teams_in_db(scores["Team Name"].dropna().unique())
     bonus_df = get_bonus_points()
 
     scores = scores.merge(bonus_df, how="left", left_on="Team Name", right_on="team_name")
     scores["bonus"] = scores["bonus"].fillna(0)
-    scores["Total_with_Bonus"] = scores["Total_Score"] + scores["bonus"]
+    
+    # Use the correct column name based on what's actually in the data
+    if "Total_Score" in scores.columns:
+        scores["Total_with_Bonus"] = scores["Total_Score"] + scores["bonus"]
+        score_col = "Total_Score"
+    else:
+        # Fallback to other possible column names
+        for col in ["Total Score", "Total", "Score"]:
+            if col in scores.columns:
+                scores["Total_with_Bonus"] = scores[col] + scores["bonus"]
+                score_col = col
+                break
+        else:
+            st.error("Could not find score column in data")
+            return
 
     
     tab1, tab2, tab3, tab4 = st.tabs(["Team Performance Overview", "Team Explorer", "Coach Explorer", "Admin Panel"])
 
     with tab1:
         st.subheader("📊 Team Performance Overview")
-        st.dataframe(scores[["Team Name", "Total_Score", "bonus", "Total_with_Bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]])
+        # Display available columns
+        display_cols = ["Team Name", score_col, "bonus", "Total_with_Bonus"]
+        for col in ["Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]:
+            if col in scores.columns:
+                display_cols.append(col)
+        st.dataframe(scores[display_cols])
 
     with tab2:
         st.subheader("🔍 Team Explorer")
