@@ -593,6 +593,12 @@ def main():
     with tab1:
         st.subheader("📊 Team Performance Overview")
         teams_display = scores[["Team Name", "Total_Score", "Total Event Attendance Bonus", "coach_total_bonus", "bonus", "Average_Score", "Member_Attendance_Rate", "Coach_Attendance_Rate"]].copy()
+        # Convert score columns to integers (no decimal places)
+        teams_display["Total_Score"] = teams_display["Total_Score"].astype(int)
+        teams_display["Total Event Attendance Bonus"] = teams_display["Total Event Attendance Bonus"].astype(int)
+        teams_display["coach_total_bonus"] = teams_display["coach_total_bonus"].astype(int)
+        teams_display["bonus"] = teams_display["bonus"].astype(int)
+        teams_display["Average_Score"] = teams_display["Average_Score"].astype(int)
         # Sort by Total_Score descending (highest to lowest)
         teams_display = teams_display.sort_values("Total_Score", ascending=False).reset_index(drop=True)
         teams_display.index = teams_display.index + 1
@@ -627,7 +633,7 @@ def main():
         team_total = scores[scores["Team Name"] == selected_team]["Total_with_Bonus"].iloc[0]
         team_attendance_bonus = scores[scores["Team Name"] == selected_team]["Total Event Attendance Bonus"].iloc[0]
         
-        st.write(f"**Team Score:** {team_score} (Base) + {team_attendance_bonus} (Attendance) + {team_coach_bonus} (Coach Total) + {team_bonus} (Admin Bonus) = {team_total} (Total)")
+        st.write(f"**Team Score:** {int(team_score)} (Base) + {int(team_attendance_bonus)} (Attendance) + {int(team_coach_bonus)} (Coach Total) + {int(team_bonus)} (Admin Bonus) = {int(team_total)} (Total)")
         st.write("**Team Members:**")
         
         # Initialize all variables with defaults first
@@ -661,7 +667,7 @@ def main():
             "Member Name": [coach_name],
             "Member Department": [coach_dept],
             "Role": ["Coach"],
-            "Points Earned": [coach_points]
+            "Points Earned": [int(coach_points)]
         })
         
         # Merge team member info with individual member scores
@@ -675,7 +681,7 @@ def main():
                 right_on=["Team", "Member Name"],
                 how="left"
             )
-            team_info_with_individual["Points Earned"] = team_info_with_individual["Points Earned"].fillna(0)
+            team_info_with_individual["Points Earned"] = team_info_with_individual["Points Earned"].fillna(0).astype(int)
             team_members_display = team_info_with_individual[["Member Name", "Member Department", "Points Earned"]].sort_values("Points Earned", ascending=False).reset_index(drop=True)
         else:
             # If individual scores unavailable, show 0 for all members
@@ -694,7 +700,7 @@ def main():
             member_points = team_members_display.loc[member_idx, "Points Earned"]
             
             # Update coach entry to show total points (coach + member)
-            coach_entry.loc[0, "Points Earned"] = coach_points + member_points
+            coach_entry.loc[0, "Points Earned"] = int(coach_points + member_points)
             coach_entry.loc[0, "Role"] = "Coach & Team Member"
             
             # Remove the duplicate member entry
@@ -714,18 +720,8 @@ def main():
 
     with tab3:
         st.subheader("🎓 Coach Explorer")
-        # Sort coaches by their total scores (highest to lowest)
-        if len(individual_coach_scores) > 0:
-            coach_totals = individual_coach_scores.groupby("Coach Name")["Points Earned"].sum().reset_index()
-            coaches_by_score = coach_totals.sort_values("Points Earned", ascending=False)["Coach Name"].tolist()
-            # Add any coaches not in individual scores
-            all_coaches = masterlist["Coach/Consultant"].dropna().unique()
-            for coach in all_coaches:
-                if coach not in coaches_by_score:
-                    coaches_by_score.append(coach)
-        else:
-            coaches_by_score = sorted(masterlist["Coach/Consultant"].dropna().unique())
-        selected_coach = st.selectbox("Select a coach", coaches_by_score)
+        # Sort coaches alphabetically
+        selected_coach = st.selectbox("Select a coach", sorted(masterlist["Coach/Consultant"].dropna().unique()))
         coach_teams = masterlist[masterlist["Coach/Consultant"] == selected_coach]
         
         # Get unique team names for this coach and their scores
@@ -746,7 +742,7 @@ def main():
                 right_on=["Team", "Member Name"], 
                 how="left"
             )
-            coach_teams_with_individual["Points Earned"] = coach_teams_with_individual["Points Earned"].fillna(0)
+            coach_teams_with_individual["Points Earned"] = coach_teams_with_individual["Points Earned"].fillna(0).astype(int)
             coach_teams_display = coach_teams_with_individual[["Team Name", "Total_Score", "Total_Member_Points", "Member Name", "Member Department", "Points Earned"]].sort_values(["Team Name", "Points Earned"], ascending=[True, False])
         else:
             # If individual scores unavailable, show 0 for all members
@@ -760,8 +756,8 @@ def main():
             st.write("**Teams and Members:**")
             for team in sorted(coach_team_names):
                 team_members = coach_teams_display[coach_teams_display["Team Name"] == team]
-                team_score = team_members.iloc[0]["Total_Score"]
-                team_member_points = team_members.iloc[0]["Total_Member_Points"]
+                team_score = int(team_members.iloc[0]["Total_Score"])
+                team_member_points = int(team_members.iloc[0]["Total_Member_Points"])
                 st.write(f"**{team}** (Team Score: {team_score}, Total Member Points: {team_member_points})")
                 
                 # Initialize variables with defaults
@@ -790,7 +786,7 @@ def main():
                     "Member Name": [selected_coach],
                     "Member Department": [coach_dept],
                     "Role": ["Coach"],
-                    "Points Earned": [coach_points]
+                    "Points Earned": [int(coach_points)]
                 })
                 
                 # Create member list with individual points and numbering (sorted by points descending)
@@ -806,7 +802,7 @@ def main():
                     member_points = members_list.loc[member_idx, "Points Earned"]
                     
                     # Update coach entry to show total points (coach + member)
-                    coach_entry.loc[0, "Points Earned"] = coach_points + member_points
+                    coach_entry.loc[0, "Points Earned"] = int(coach_points + member_points)
                     coach_entry.loc[0, "Role"] = "Coach & Team Member"
                     
                     # Remove the duplicate member entry
@@ -843,7 +839,7 @@ def main():
                 "Member Name": [selected_coach],
                 "Member Department": ["Coach"],
                 "Role": ["Coach"],
-                "Points Earned": [coach_total_points]
+                "Points Earned": [int(coach_total_points)]
             })
             
             # Show individual member points, not team scores (sorted by points descending)
@@ -856,7 +852,7 @@ def main():
                 member_total_points = member_rows["Points Earned"].sum()
                 
                 # Update coach entry to show combined points and indicate dual role
-                coach_entry.loc[0, "Points Earned"] = coach_total_points + member_total_points
+                coach_entry.loc[0, "Points Earned"] = int(coach_total_points + member_total_points)
                 coach_entry.loc[0, "Role"] = "Coach & Team Member"
                 coach_entry.loc[0, "Team Name"] = "All Teams (Coach + Member)"
                 
