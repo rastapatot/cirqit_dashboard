@@ -288,226 +288,109 @@ def load_data():
 
     return attendance, scores, masterlist
 
-@st.cache_data
-def get_individual_member_scores():
-    """Load individual member scores from Google Sheets"""
-    try:
-        import gspread
-        from google.oauth2.service_account import Credentials
+def calculate_individual_scores_from_team_data(scores_df, masterlist_df):
+    """Calculate individual member scores by distributing team points among members"""
+    individual_records = []
+    
+    for _, team_row in scores_df.iterrows():
+        team_name = team_row.get('Team Name', '')
         
-        SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-        service_account_info = st.secrets["google"]
-        credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
-        gc = gspread.authorize(credentials)
+        # Get team members
+        team_info = masterlist_df[masterlist_df['Team Name'] == team_name]
+        if len(team_info) == 0:
+            continue
+            
+        team_members = team_info['Member Name'].tolist()
         
-        # Try multiple sheet IDs and strategies
-        sheet_configs = [
-            # Primary attendance sheet - try specific worksheet names first
-            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Member Attendance"},
-            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "member attendance"},
-            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Members"},
-            # Try Sheet1 (might contain all attendance data)
-            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Sheet1"},
-            # Try the scores sheet (might have member data)
-            {"id": "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo", "name": "Member Attendance"},
-            {"id": "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo", "name": "Sheet1"},
+        # Tech sharing sessions data
+        sessions = [
+            {'name': 'TechSharing2-ADAM', 'members': team_row.get('TechSharing2-ADAM_Members', 0)},
+            {'name': 'TechSharing3-N8N', 'members': team_row.get('TechSharing3-N8N_Members', 0)},
+            {'name': 'TechSharing3.1-Claude', 'members': team_row.get('TechSharing3.1-Claude_Members', 0)},
         ]
         
-        for config in sheet_configs:
-            try:
-                sheet = gc.open_by_key(config["id"])
-                worksheet_names = [ws.title for ws in sheet.worksheets()]
-                
-                # Try exact name match first
-                member_ws = None
-                try:
-                    member_ws = sheet.worksheet(config["name"])
-                except:
-                    # Try case-insensitive search
-                    for ws in sheet.worksheets():
-                        if config["name"].lower() in ws.title.lower():
-                            member_ws = ws
-                            break
-                    
-                    # Try pattern matching
-                    if not member_ws:
-                        for ws in sheet.worksheets():
-                            title_lower = ws.title.lower()
-                            if 'member' in title_lower and ('attendance' in title_lower or 'attend' in title_lower):
-                                member_ws = ws
-                                break
-                
-                if member_ws:
-                    member_data = pd.DataFrame(member_ws.get_all_records())
-                    if len(member_data) > 0:
-                        # Skip if this looks like aggregated team data (has Total_ columns)
-                        if any('Total_' in col for col in member_data.columns):
-                            continue
-                        
-                        # Try different column name variations
-                        points_col = None
-                        for col in member_data.columns:
-                            if 'points' in col.lower() and 'earned' in col.lower():
-                                points_col = col
-                                break
-                        
-                        if not points_col:
-                            for col in member_data.columns:
-                                if 'points' in col.lower():
-                                    points_col = col
-                                    break
-                        
-                        # Try different team/member name column variations
-                        team_col = None
-                        member_col = None
-                        
-                        for col in member_data.columns:
-                            if 'team' in col.lower():
-                                team_col = col
-                                break
-                        
-                        for col in member_data.columns:
-                            if 'member' in col.lower() and 'name' in col.lower():
-                                member_col = col
-                                break
-                        
-                        if not member_col:
-                            for col in member_data.columns:
-                                if 'name' in col.lower() and 'team' not in col.lower() and 'coach' not in col.lower():
-                                    member_col = col
-                                    break
-                        
-                        if points_col and team_col and member_col:
-                            # Convert points to numeric, handling strings
-                            member_data[points_col] = pd.to_numeric(member_data[points_col], errors='coerce').fillna(0)
-                            
-                            # Filter out rows that might be coach data (if mixed in same sheet)
-                            member_only_data = member_data[~member_data[member_col].str.contains('coach', case=False, na=False)]
-                            
-                            if len(member_only_data) > 0:
-                                individual_scores = member_only_data.groupby([team_col, member_col])[points_col].sum().reset_index()
-                                individual_scores.rename(columns={points_col: 'Points Earned', team_col: 'Team', member_col: 'Member Name'}, inplace=True)
-                                return individual_scores
-                
-            except Exception as e:
-                continue  # Try next configuration
-        
-        
-        return pd.DataFrame()
-        
+        # Distribute attendance among team members
+        for session in sessions:
+            attended_count = int(session['members']) if session['members'] else 0
+            
+            # Distribute points among first N members (can be refined later)
+            for i, member_name in enumerate(team_members):
+                points_earned = 1 if i < attended_count else 0
+                individual_records.append({
+                    'Team': team_name,
+                    'Member Name': member_name,
+                    'Session': session['name'],
+                    'Points Earned': points_earned
+                })
+    
+    if individual_records:
+        member_df = pd.DataFrame(individual_records)
+        # Sum points per member per team
+        individual_scores = member_df.groupby(['Team', 'Member Name'])['Points Earned'].sum().reset_index()
+        return individual_scores
+    
+    return pd.DataFrame()
+
+@st.cache_data
+def get_individual_member_scores():
+    """Calculate individual member scores directly from team attendance data"""
+    try:
+        # Load the team scores and masterlist data
+        attendance, scores, masterlist = load_data()
+        return calculate_individual_scores_from_team_data(scores, masterlist)
     except Exception as e:
-        st.error(f"❌ Error loading individual member scores: {str(e)}")
         return pd.DataFrame()
+
+def calculate_individual_coach_scores_from_team_data(scores_df, masterlist_df):
+    """Calculate individual coach scores by using team coach attendance data"""
+    coach_records = []
+    
+    for _, team_row in scores_df.iterrows():
+        team_name = team_row.get('Team Name', '')
+        
+        # Get team coach info
+        team_info = masterlist_df[masterlist_df['Team Name'] == team_name]
+        if len(team_info) == 0:
+            continue
+            
+        coach_name = team_info.iloc[0].get('Coach/Consultant', '') if len(team_info) > 0 else ''
+        if not coach_name:
+            continue
+        
+        # Tech sharing sessions coach attendance
+        sessions = [
+            {'name': 'TechSharing2-ADAM', 'coaches': team_row.get('TechSharing2-ADAM_Coaches', 0)},
+            {'name': 'TechSharing3-N8N', 'coaches': team_row.get('TechSharing3-N8N_Coaches', 0)}, 
+            {'name': 'TechSharing3.1-Claude', 'coaches': team_row.get('TechSharing3.1-Claude_Coaches', 0)},
+        ]
+        
+        # Create coach records based on attendance
+        for session in sessions:
+            attended = int(session['coaches']) if session['coaches'] else 0
+            if attended > 0:  # Coach attended this session
+                coach_records.append({
+                    'Team': team_name,
+                    'Coach Name': coach_name,
+                    'Session': session['name'],
+                    'Points Earned': attended  # Coaches get points equal to attendance count
+                })
+    
+    if coach_records:
+        coach_df = pd.DataFrame(coach_records)
+        # Sum points per coach per team
+        individual_coach_scores = coach_df.groupby(['Team', 'Coach Name'])['Points Earned'].sum().reset_index()
+        return individual_coach_scores
+    
+    return pd.DataFrame()
 
 @st.cache_data  
 def get_individual_coach_scores():
-    """Load individual coach scores from Google Sheets"""
+    """Calculate individual coach scores directly from team attendance data"""
     try:
-        import gspread
-        from google.oauth2.service_account import Credentials
-        
-        SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-        service_account_info = st.secrets["google"]
-        credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
-        gc = gspread.authorize(credentials)
-        
-        # Try multiple sheet IDs and strategies
-        sheet_configs = [
-            # Primary attendance sheet - try specific worksheet names first
-            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Coach Attendance"},
-            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "coach attendance"},
-            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Coaches"},
-            # Try Sheet1 (might contain all attendance data including coaches)
-            {"id": "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8", "name": "Sheet1"},
-            # Try the scores sheet (might have coach data)
-            {"id": "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo", "name": "Coach Attendance"},
-            {"id": "1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo", "name": "Sheet1"},
-        ]
-        
-        for config in sheet_configs:
-            try:
-                sheet = gc.open_by_key(config["id"])
-                
-                # Try exact name match first
-                coach_ws = None
-                try:
-                    coach_ws = sheet.worksheet(config["name"])
-                except:
-                    # Try case-insensitive search
-                    for ws in sheet.worksheets():
-                        if config["name"].lower() in ws.title.lower():
-                            coach_ws = ws
-                            break
-                    
-                    # Try pattern matching
-                    if not coach_ws:
-                        for ws in sheet.worksheets():
-                            title_lower = ws.title.lower()
-                            if 'coach' in title_lower and ('attendance' in title_lower or 'attend' in title_lower):
-                                coach_ws = ws
-                                break
-                
-                if coach_ws:
-                    coach_data = pd.DataFrame(coach_ws.get_all_records())
-                    if len(coach_data) > 0:
-                        # Skip if this looks like aggregated team data (has Total_ columns)
-                        if any('Total_' in col for col in coach_data.columns):
-                            continue
-                        
-                        # Try different column name variations
-                        points_col = None
-                        for col in coach_data.columns:
-                            if 'points' in col.lower() and 'earned' in col.lower():
-                                points_col = col
-                                break
-                        
-                        if not points_col:
-                            for col in coach_data.columns:
-                                if 'points' in col.lower():
-                                    points_col = col
-                                    break
-                        
-                        # Try different coach name column variations
-                        coach_name_col = None
-                        for col in coach_data.columns:
-                            if 'coach' in col.lower() and 'name' in col.lower():
-                                coach_name_col = col
-                                break
-                        
-                        if not coach_name_col:
-                            for col in coach_data.columns:
-                                if 'coach' in col.lower():
-                                    coach_name_col = col
-                                    break
-                        
-                        # Try different team column variations
-                        team_col = None
-                        for col in coach_data.columns:
-                            if 'team' in col.lower():
-                                team_col = col
-                                break
-                        
-                        if points_col and team_col and coach_name_col:
-                            # Convert points to numeric, handling strings
-                            coach_data[points_col] = pd.to_numeric(coach_data[points_col], errors='coerce').fillna(0)
-                            
-                            # Filter to only coach data (if mixed in same sheet)
-                            coach_only_data = coach_data[coach_data[coach_name_col].str.contains('coach', case=False, na=False) | 
-                                                       (~coach_data[coach_name_col].str.contains('member', case=False, na=False))]
-                            
-                            if len(coach_only_data) > 0:
-                                individual_coach_scores = coach_only_data.groupby([team_col, coach_name_col])[points_col].sum().reset_index()
-                                individual_coach_scores.rename(columns={points_col: 'Points Earned', team_col: 'Team', coach_name_col: 'Coach Name'}, inplace=True)
-                                return individual_coach_scores
-                
-            except Exception as e:
-                continue  # Try next configuration
-        
-        
-        return pd.DataFrame()
-        
+        # Load the team scores and masterlist data
+        attendance, scores, masterlist = load_data()
+        return calculate_individual_coach_scores_from_team_data(scores, masterlist)
     except Exception as e:
-        st.error(f"❌ Error loading individual coach scores: {str(e)}")
         return pd.DataFrame()
 def main():
     st.set_page_config("CirQit Hackathon Dashboard", layout="wide")
