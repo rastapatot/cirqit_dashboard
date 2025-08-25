@@ -497,6 +497,21 @@ def main():
         # Add Role column for team members
         team_members_display["Role"] = "Team Member"
         
+        # Handle dual-role scenario (coach who is also a team member)
+        coach_is_member = coach_name in team_members_display["Member Name"].values if coach_name else False
+        
+        if coach_is_member:
+            # If coach is also a team member, update their role and combine their points
+            member_idx = team_members_display[team_members_display["Member Name"] == coach_name].index[0]
+            member_points = team_members_display.loc[member_idx, "Points Earned"]
+            
+            # Update coach entry to show total points (coach + member)
+            coach_entry.loc[0, "Points Earned"] = coach_points + member_points
+            coach_entry.loc[0, "Role"] = "Coach & Team Member"
+            
+            # Remove the duplicate member entry
+            team_members_display = team_members_display.drop(member_idx).reset_index(drop=True)
+        
         # Combine coach and members (coach first)
         combined_display = pd.concat([coach_entry, team_members_display], ignore_index=True)
         combined_display.index = combined_display.index + 1
@@ -586,6 +601,21 @@ def main():
                 members_list = team_members[["Member Name", "Member Department", "Points Earned"]].reset_index(drop=True)
                 members_list["Role"] = "Team Member"
                 
+                # Handle dual-role scenario (coach who is also a team member)
+                coach_is_member = selected_coach in members_list["Member Name"].values if selected_coach else False
+                
+                if coach_is_member:
+                    # If coach is also a team member, update their role and combine their points
+                    member_idx = members_list[members_list["Member Name"] == selected_coach].index[0]
+                    member_points = members_list.loc[member_idx, "Points Earned"]
+                    
+                    # Update coach entry to show total points (coach + member)
+                    coach_entry.loc[0, "Points Earned"] = coach_points + member_points
+                    coach_entry.loc[0, "Role"] = "Coach & Team Member"
+                    
+                    # Remove the duplicate member entry
+                    members_list = members_list.drop(member_idx).reset_index(drop=True)
+                
                 # Combine coach and members (coach first)
                 combined_list = pd.concat([coach_entry, members_list], ignore_index=True)
                 combined_list.index = combined_list.index + 1
@@ -623,6 +653,19 @@ def main():
             # Show individual member points, not team scores
             clean_display = coach_teams_display[["Team Name", "Member Name", "Member Department", "Points Earned"]].reset_index(drop=True)
             clean_display["Role"] = "Team Member"
+            
+            # Handle dual-role scenario - add coach's member points to coach total
+            if selected_coach in clean_display["Member Name"].values:
+                member_rows = clean_display[clean_display["Member Name"] == selected_coach]
+                member_total_points = member_rows["Points Earned"].sum()
+                
+                # Update coach entry to show combined points and indicate dual role
+                coach_entry.loc[0, "Points Earned"] = coach_total_points + member_total_points
+                coach_entry.loc[0, "Role"] = "Coach & Team Member"
+                coach_entry.loc[0, "Team Name"] = "All Teams (Coach + Member)"
+                
+                # Remove duplicate member entries for the coach
+                clean_display = clean_display[clean_display["Member Name"] != selected_coach].reset_index(drop=True)
             
             # Combine coach and members (coach first)
             combined_display = pd.concat([coach_entry, clean_display], ignore_index=True)
