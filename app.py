@@ -559,24 +559,33 @@ def main():
         st.write(f"**Team Score:** {team_score} (Base) + {team_attendance_bonus} (Attendance) + {team_bonus} (Bonus) = {team_total} (Total)")
         st.write("**Team Members:**")
         
-        # Get coach info and score
-        coach_name = team_info["Coach/Consultant"].iloc[0] if len(team_info) > 0 else ""
+        # Initialize all variables with defaults first
+        coach_name = ""
         coach_dept = "Coach"
-        if len(team_info) > 0 and "Coach Department" in team_info.columns:
-            dept_value = team_info["Coach Department"].iloc[0]
-            coach_dept = dept_value if dept_value and str(dept_value) != 'nan' else "Coach"
+        coach_points = 0
+        
+        # Get coach info and score
+        try:
+            if len(team_info) > 0:
+                coach_name = str(team_info["Coach/Consultant"].iloc[0]) if "Coach/Consultant" in team_info.columns else ""
+                if "Coach Department" in team_info.columns:
+                    dept_value = team_info["Coach Department"].iloc[0]
+                    if dept_value and str(dept_value) not in ['nan', 'None', '']:
+                        coach_dept = str(dept_value)
+        except Exception:
+            coach_name = ""
+            coach_dept = "Coach"
         
         # Get coach individual score
-        coach_points = 0
         try:
-            if len(individual_coach_scores) > 0:
+            if len(individual_coach_scores) > 0 and coach_name:
                 coach_score_data = individual_coach_scores[
                     (individual_coach_scores["Team"] == selected_team) & 
                     (individual_coach_scores["Coach Name"] == coach_name)
                 ]
                 if len(coach_score_data) > 0:
-                    coach_points = coach_score_data.iloc[0]["Points Earned"]
-        except:
+                    coach_points = float(coach_score_data.iloc[0]["Points Earned"])
+        except Exception:
             coach_points = 0
         
         # Create coach entry
@@ -661,21 +670,28 @@ def main():
                 team_member_points = team_members.iloc[0]["Total_Member_Points"]
                 st.write(f"**{team}** (Team Score: {team_score}, Total Member Points: {team_member_points})")
                 
-                # Get coach info and score for this team
+                # Initialize variables with defaults
                 coach_dept = "Coach"
-                if len(team_members) > 0 and "Member Department" in team_members.columns:
-                    dept_value = team_members.iloc[0]["Member Department"]
-                    coach_dept = dept_value if dept_value and str(dept_value) != 'nan' else "Coach"
                 coach_points = 0
+                
+                # Get coach info and score for this team
                 try:
-                    if len(individual_coach_scores) > 0:
+                    if len(team_members) > 0 and "Member Department" in team_members.columns:
+                        dept_value = team_members.iloc[0]["Member Department"]
+                        if dept_value and str(dept_value) not in ['nan', 'None', '']:
+                            coach_dept = str(dept_value)
+                except Exception:
+                    coach_dept = "Coach"
+                
+                try:
+                    if len(individual_coach_scores) > 0 and selected_coach:
                         coach_score_data = individual_coach_scores[
                             (individual_coach_scores["Team"] == team) & 
                             (individual_coach_scores["Coach Name"] == selected_coach)
                         ]
                         if len(coach_score_data) > 0:
-                            coach_points = coach_score_data.iloc[0]["Points Earned"]
-                except:
+                            coach_points = float(coach_score_data.iloc[0]["Points Earned"])
+                except Exception:
                     coach_points = 0
                 
                 # Create coach entry
@@ -703,14 +719,16 @@ def main():
         else:
             st.write("**All Members under this coach:**")
             
-            # Get coach individual score across all teams
+            # Initialize variable with default
             coach_total_points = 0
+            
+            # Get coach individual score across all teams
             try:
-                if len(individual_coach_scores) > 0:
+                if len(individual_coach_scores) > 0 and selected_coach:
                     coach_all_scores = individual_coach_scores[individual_coach_scores["Coach Name"] == selected_coach]
                     if len(coach_all_scores) > 0:
-                        coach_total_points = coach_all_scores["Points Earned"].sum()
-            except:
+                        coach_total_points = float(coach_all_scores["Points Earned"].sum())
+            except Exception:
                 coach_total_points = 0
             
             # Create coach entry for all members view
