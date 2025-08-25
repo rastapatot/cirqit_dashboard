@@ -509,38 +509,6 @@ def get_individual_coach_scores():
                 continue  # Try next configuration
         
         
-        # TEMPORARY: If no individual coach data found, create estimated scores from team aggregates  
-        st.warning("⚠️ Individual coach attendance data not found. Using estimated scores based on team totals.")
-        try:
-            # Use the existing scores data to estimate coach contributions
-            scores_sheet = gc.open_by_key("1xGVH2TDV4at_WmNnaMDtjYbQPTAAUffd04bejme1Gxo")
-            scores_data = pd.DataFrame(scores_sheet.sheet1.get_all_records())
-            
-            # Get masterlist to know team coaches
-            masterlist_sheet = gc.open_by_key("1u5i9s9Ty-jf-djMeAAzO1qOl_nk3_X3ICdfFfLGvLcc")
-            masterlist_data = pd.DataFrame(masterlist_sheet.sheet1.get_all_records())
-            
-            estimated_coach_scores = []
-            for _, team_row in scores_data.iterrows():
-                team_name = team_row.get('Team Name', '')
-                total_coach_points = team_row.get('Total_Coach_Points', 0)
-                
-                # Get team coach from masterlist
-                team_info = masterlist_data[masterlist_data['Team Name'] == team_name]
-                if len(team_info) > 0:
-                    coach_name = team_info.iloc[0].get('Coach/Consultant', '')
-                    if coach_name:
-                        estimated_coach_scores.append({
-                            'Team': team_name,
-                            'Coach Name': coach_name,
-                            'Points Earned': total_coach_points
-                        })
-            
-            if estimated_coach_scores:
-                return pd.DataFrame(estimated_coach_scores)
-        except Exception as e:
-            st.error(f"Could not create estimated coach scores: {str(e)}")
-        
         return pd.DataFrame()
         
     except Exception as e:
