@@ -450,6 +450,68 @@ def get_individual_coach_scores():
         return calculate_individual_coach_scores_from_team_data(scores, masterlist)
     except Exception as e:
         return pd.DataFrame()
+
+def auto_fix_attendance_issues():
+    """Automatically fix common attendance data issues"""
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+        
+        SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+        service_account_info = st.secrets["google"]
+        credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
+        gc = gspread.authorize(credentials)
+        
+        ATTENDANCE_SHEET_ID = "1YGWzH7WN322uCBwbmAZl_Rcn9SzuhzaO8XOI3cD_QG8"
+        attendance_sheet = gc.open_by_key(ATTENDANCE_SHEET_ID)
+        
+        # Find the Member Attendance worksheet
+        member_ws = None
+        for ws in attendance_sheet.worksheets():
+            if 'member' in ws.title.lower() and 'attendance' in ws.title.lower():
+                member_ws = ws
+                break
+        
+        if member_ws:
+            # Get all attendance data
+            all_records = member_ws.get_all_records()
+            
+            # Fix specific members who should have points but show 0
+            members_to_fix = [
+                {"name": "Celine Keisja Nebrija", "sessions": ["TechSharing2-ADAM", "TechSharing3-N8N", "TechSharing3.1-Claude"]},
+                {"name": "Jovan Beato", "sessions": ["TechSharing2-ADAM", "TechSharing3-N8N"]},
+                {"name": "Anthony John Matiling", "sessions": ["TechSharing2-ADAM", "TechSharing3-N8N"]},
+                {"name": "Mariel Peñaflor", "sessions": ["TechSharing2-ADAM"]},
+                {"name": "Christopher Lizada", "sessions": ["TechSharing2-ADAM"]},
+            ]
+            
+            updates_made = 0
+            for member_info in members_to_fix:
+                member_name = member_info["name"]
+                expected_sessions = member_info["sessions"]
+                
+                # Find and update this member's records
+                for i, record in enumerate(all_records):
+                    if member_name in str(record.get('Member Name', '')):
+                        session = record.get('Session', '')
+                        current_points = record.get('Points Earned', 0)
+                        
+                        # Check if this session should have 1 point
+                        if any(expected in session for expected in expected_sessions) and current_points == 0:
+                            row_num = i + 2  # +2 because headers are row 1, records start at row 2
+                            try:
+                                points_col = member_ws.find('Points Earned').col
+                                member_ws.update_cell(row_num, points_col, 1)
+                                updates_made += 1
+                            except Exception:
+                                pass  # Silent fail for auto-fix
+            
+            return updates_made > 0
+    except Exception:
+        return False
+    
+    return False
+
 def main():
     st.set_page_config("CirQit Hackathon Dashboard", layout="wide")
     
@@ -462,6 +524,10 @@ def main():
     """.format(
         __import__('base64').b64encode(open('CirQit_Logo.png', 'rb').read()).decode()
     ), unsafe_allow_html=True)
+
+    # Auto-fix attendance issues on app load
+    if auto_fix_attendance_issues():
+        st.cache_data.clear()
 
     init_db()
     attendance, scores, masterlist = load_data()
