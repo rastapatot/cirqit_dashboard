@@ -477,19 +477,24 @@ def main():
     with tab2:
         st.subheader("🔍 Team Explorer")
         selected_team = st.selectbox("Select a team", sorted(scores["Team Name"].dropna().unique()))
-        team_info = masterlist[masterlist["Team Name"] == selected_team]
         
-        # Debug: Show team matching information
-        if st.checkbox("Debug: Show team matching info"):
-            st.write(f"Selected team: '{selected_team}'")
-            st.write(f"Teams found in masterlist: {len(team_info)}")
-            if len(team_info) > 0:
-                st.write("Team members found:")
-                st.dataframe(team_info[["Member Name", "Coach/Consultant"]])
-            else:
-                st.write("Available teams in masterlist:")
-                available_teams = masterlist["Team Name"].unique()
-                st.write([t for t in available_teams if "Alliance" in t])
+        # Enhanced team matching to handle name variations
+        team_info = masterlist[masterlist["Team Name"] == selected_team]
+        if len(team_info) == 0:
+            # Try matching with different name formats
+            # Remove parentheses from selected team and match with masterlist teams that start with it
+            clean_selected = selected_team.split('(')[0].strip()
+            team_info = masterlist[masterlist["Team Name"].str.startswith(clean_selected, na=False)]
+            
+            if len(team_info) == 0:
+                # Try the reverse - clean masterlist names and match with selected team
+                masterlist_clean = masterlist.copy()
+                masterlist_clean['Clean_Name'] = masterlist_clean['Team Name'].str.split('(').str[0].str.strip()
+                team_info = masterlist_clean[masterlist_clean['Clean_Name'] == clean_selected]
+                
+            if len(team_info) == 0:
+                # Last resort - partial matching
+                team_info = masterlist[masterlist["Team Name"].str.contains(clean_selected, na=False, regex=False)]
         team_score = scores[scores["Team Name"] == selected_team]["Total_Score"].iloc[0]
         team_bonus = scores[scores["Team Name"] == selected_team]["bonus"].iloc[0]
         team_coach_bonus = scores[scores["Team Name"] == selected_team]["coach_total_bonus"].iloc[0]
