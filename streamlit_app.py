@@ -1,7 +1,7 @@
 """
-CirQit Hackathon Dashboard - Production Application v2.0
+CirQit Hackathon Dashboard - Production Application v2.1
 Accurate scoring system with proper database backend
-Fixed admin password handling for Streamlit Cloud deployment
+Fixed admin password handling for Streamlit Cloud deployment - FORCE REDEPLOY
 """
 
 import streamlit as st
