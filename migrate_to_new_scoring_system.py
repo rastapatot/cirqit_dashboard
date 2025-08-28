@@ -43,11 +43,16 @@ def migrate_data():
         ('TechSharing3.1-Claude', 'tech_sharing', '2025-08-20', 1, 2),
     ]
     
-    cursor.executemany(
-        'INSERT INTO events (name, type, date_held, member_points_per_attendance, coach_points_per_attendance) VALUES (?, ?, ?, ?, ?)',
-        events
-    )
-    print("✅ Events inserted")
+    # Check if events already exist
+    cursor.execute('SELECT COUNT(*) FROM events')
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany(
+            'INSERT INTO events (name, event_type, event_date, member_points_per_attendance, coach_points_per_attendance) VALUES (?, ?, ?, ?, ?)',
+            events
+        )
+        print("✅ Events inserted")
+    else:
+        print("✅ Events already exist, skipping insertion")
     
     # 2. Insert Teams and Members
     team_id_map = {}

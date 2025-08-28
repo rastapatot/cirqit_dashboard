@@ -1,0 +1,118 @@
+
+ATTENDANCE PROCESSING SUMMARY
+Event: Ignite the CirQit: A Day of MCP & Bedrock in Action
+Date: August 28, 2025
+Event ID: 10
+
+STATISTICS:
+- Total participants in CSV: 384
+- Successfully matched: 287
+- Members attended: 269
+- Coaches attended: 18
+
+UNMATCHED PARTICIPANTS (97):
+- Jenn Yeh
+- Army Leido
+- Byron Gelera
+- Ken Campaera
+- Joey Wu
+- Joseph Reyes
+- Chantal Ballesteros
+- Juniel Senente
+- Lady Acua
+- Kazuhiro Masumi
+- Janno Ramos
+- Angelo Francisco
+- Davin San Juan
+- Maria Tesorero
+- Rhio Manaog
+- Mhica Romero
+- Adremel Redondo
+- Alvin Nieto
+- May Bactad
+- Jay-are Seorin
+- Paul Babon
+- Allen Magpoc
+- Christian Nava
+- Christian Dagami
+- Ramon Romero
+- John Rey Caon
+- Basil Almotiry
+- Mariel Peaflor
+- Paulo Perez
+- Louis Tablizo
+- Ericka Laio
+- Jerame Canoza
+- Earle Earnshaw
+- Roy Marasigan
+- Shirley Angeles
+- Ted Oabel
+- Jose Ojinal
+- Fyle Sildo
+- Christopher So
+- Lord Araw
+- Ross Peralta
+- John Anthony Baes
+- Ian Alicante
+- Mark Argente
+- Joyce Lapido
+- Nikko Tamaa
+- Edmond Palmea
+- Lawrence Castillo
+- MarkJason Co
+- James Redondo
+- John Ruel Lavia
+- Angelo Saberola
+- Giannina Escueta
+- Abegail Tomaneng
+- Kerstan Navarro
+- Alexie Dionisio
+- Renz Joseph Perea
+- Mark Loretizo
+- Joemarie Vias
+- Arjun Baltazar
+- Francis Saguiguit
+- Mark Crister Binag
+- Rheniel Ramos
+- Kelvin Co
+- Raphael Ronquillo
+- Jeffrey Aniciete
+- Emmanuel Rosales
+- Mio Villena
+- Jessie J Wang
+- Karen Lopez
+- RonJay Caragay
+- Wena Cos
+- Jenn AWS
+- Joy Avelino
+- Rose Perez
+- Christian Joy Carito
+- Carmi Mora
+- Robyn Bernardo
+- Rachael Eunice Caguigin
+- Christopher Palomo
+- Porsh Laxa
+- Jessica Valenzuela
+- Peterson Iigo
+- PH MANILA 809
+- Mary Yambao
+- Wel Salon
+- Jason Brian Sy
+- Edarwin Tadina
+- Reuven Pingol
+- Sean Torre
+- Alvin Atillo
+- Mary Bahian
+- Jay Nebre
+- Bianca De Pedro
+- Ardin Maglalang
+- John Maximo
+- Froilan Lopez
+
+FILES CREATED:
+- formatted_attendance_8-28-25.csv (formatted for dashboard import)
+
+NEXT STEPS:
+1. Review unmatched participants and add them to the database if needed
+2. Import the formatted CSV into the attendance table
+3. Verify attendance data in the dashboard
