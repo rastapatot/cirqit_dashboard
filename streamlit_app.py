@@ -1,6 +1,6 @@
 """
-CirQit Hackathon Dashboard - Clean Database-Only Version
-100% Database-driven, no legacy CSV code
+CirQit Hackathon Dashboard - Production Version v2.1
+100% Database-driven, with first-name display feature
 """
 
 import streamlit as st
