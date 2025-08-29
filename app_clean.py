@@ -74,6 +74,133 @@ def clear_cache():
     """Clear all cached data"""
     st.cache_data.clear()
 
+# ================== TEAM MANAGEMENT FUNCTIONS ==================
+
+def get_existing_coaches():
+    """Get list of existing coaches for selection"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, department FROM coaches WHERE is_active = 1 ORDER BY name")
+    coaches = cursor.fetchall()
+    conn.close()
+    return coaches
+
+def add_new_coach(name, department):
+    """Add a new coach to the database"""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        # Check if coach already exists
+        cursor.execute("SELECT id FROM coaches WHERE name = ?", (name,))
+        if cursor.fetchone():
+            conn.close()
+            return False, "Coach already exists"
+        
+        # Insert new coach
+        cursor.execute("""
+            INSERT INTO coaches (name, department, is_active)
+            VALUES (?, ?, 1)
+        """, (name, department))
+        
+        coach_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return True, f"Coach '{name}' added successfully"
+        
+    except Exception as e:
+        return False, f"Error adding coach: {str(e)}"
+
+def add_new_team(team_name, total_members, coach_id, department):
+    """Add a new team to the database"""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        # Check if team already exists
+        cursor.execute("SELECT id FROM teams WHERE name = ?", (team_name,))
+        if cursor.fetchone():
+            conn.close()
+            return False, "Team name already exists"
+        
+        # Insert new team
+        cursor.execute("""
+            INSERT INTO teams (name, total_members, coach_id, department, is_active)
+            VALUES (?, ?, ?, ?, 1)
+        """, (team_name, total_members, coach_id, department))
+        
+        team_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        clear_cache()  # Clear cache to show new team
+        return True, f"Team '{team_name}' created successfully"
+        
+    except Exception as e:
+        return False, f"Error creating team: {str(e)}"
+
+def add_team_member(team_id, member_name, department, is_leader=False):
+    """Add a member to a team"""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        # Check if member already exists in this team
+        cursor.execute("SELECT id FROM members WHERE name = ? AND team_id = ?", (member_name, team_id))
+        if cursor.fetchone():
+            conn.close()
+            return False, "Member already exists in this team"
+        
+        # If this is a leader, remove leader status from others in the team
+        if is_leader:
+            cursor.execute("UPDATE members SET is_leader = 0 WHERE team_id = ?", (team_id,))
+        
+        # Insert new member
+        cursor.execute("""
+            INSERT INTO members (name, department, team_id, is_leader, is_active)
+            VALUES (?, ?, ?, ?, 1)
+        """, (member_name, department, team_id, is_leader))
+        
+        # Create attendance records for all existing events (default: not attended)
+        cursor.execute("SELECT id FROM events WHERE is_active = 1")
+        events = cursor.fetchall()
+        
+        member_id = cursor.lastrowid
+        
+        for (event_id,) in events:
+            cursor.execute("""
+                INSERT INTO attendance (event_id, member_id, attended, points_earned, session_type, recorded_by)
+                VALUES (?, ?, 0, 0, 'day', 'system_auto')
+            """, (event_id, member_id))
+        
+        conn.commit()
+        conn.close()
+        
+        clear_cache()  # Clear cache to show new member
+        return True, f"Member '{member_name}' added successfully"
+        
+    except Exception as e:
+        return False, f"Error adding member: {str(e)}"
+
+def get_teams_for_selection():
+    """Get teams for member addition"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name FROM teams WHERE is_active = 1 ORDER BY name")
+    teams = cursor.fetchall()
+    conn.close()
+    return teams
+
+def check_dual_role_member(member_name):
+    """Check if a member should also be a coach"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM coaches WHERE name = ?", (member_name,))
+    result = cursor.fetchone()
+    conn.close()
+    return result is not None
+
 def main():
     st.set_page_config(
         page_title="CirQit Hackathon Dashboard",
@@ -114,12 +241,13 @@ def main():
 def show_main_interface():
     """Show main dashboard interface"""
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "🏆 Team Leaderboard", 
         "👥 Team Explorer", 
         "🎓 Coach Explorer", 
         "📊 Event Analytics",
-        "⚙️ Admin Panel"
+        "⚙️ Admin Panel",
+        "➕ Team Management"
     ])
     
     with tab1:
@@ -136,6 +264,9 @@ def show_main_interface():
     
     with tab5:
         show_admin_panel()
+    
+    with tab6:
+        show_team_management()
 
 def show_team_leaderboard():
     """Display team leaderboard"""
@@ -410,6 +541,138 @@ def show_admin_panel():
     
     else:
         st.info("Enter the admin password to access management features")
+
+def show_team_management():
+    """Display team management interface"""
+    st.subheader("➕ Team Management")
+    st.markdown("Add new teams, members, and coaches to the system")
+    
+    # Three main sections in columns
+    col1, col2, col3 = st.columns(3)
+    
+    # ========== ADD NEW COACH ==========
+    with col1:
+        st.markdown("### 👤 Add New Coach")
+        with st.form("add_coach_form"):
+            coach_name = st.text_input("Coach Name*", placeholder="Enter full name")
+            coach_dept = st.selectbox("Department*", [
+                "Information Services", "Threat", "Risk", "Financial Crime", 
+                "Operations", "Compliance", "Legal", "Human Resources", "Other"
+            ])
+            
+            if st.form_submit_button("Add Coach", type="primary"):
+                if coach_name.strip():
+                    success, message = add_new_coach(coach_name.strip(), coach_dept)
+                    if success:
+                        st.success(message)
+                    else:
+                        st.error(message)
+                else:
+                    st.error("Please enter coach name")
+    
+    # ========== ADD NEW TEAM ==========
+    with col2:
+        st.markdown("### 🏆 Add New Team")
+        with st.form("add_team_form"):
+            team_name = st.text_input("Team Name*", placeholder="Enter unique team name")
+            team_dept = st.selectbox("Team Department*", [
+                "Information Services", "Threat", "Risk", "Financial Crime", 
+                "Operations", "Compliance", "Legal", "Human Resources", "Other"
+            ])
+            
+            # Get coaches for selection
+            coaches = get_existing_coaches()
+            if coaches:
+                coach_options = {f"{name} ({dept})": coach_id for coach_id, name, dept in coaches}
+                selected_coach = st.selectbox("Select Coach*", list(coach_options.keys()))
+                coach_id = coach_options[selected_coach] if selected_coach else None
+            else:
+                st.warning("No coaches available. Add a coach first.")
+                coach_id = None
+            
+            total_members = st.number_input("Expected Team Size*", min_value=1, max_value=10, value=5)
+            
+            if st.form_submit_button("Create Team", type="primary"):
+                if team_name.strip() and coach_id:
+                    success, message = add_new_team(team_name.strip(), total_members, coach_id, team_dept)
+                    if success:
+                        st.success(message)
+                    else:
+                        st.error(message)
+                else:
+                    st.error("Please fill all required fields")
+    
+    # ========== ADD TEAM MEMBER ==========
+    with col3:
+        st.markdown("### 👥 Add Team Member")
+        with st.form("add_member_form"):
+            member_name = st.text_input("Member Name*", placeholder="Enter full name")
+            member_dept = st.selectbox("Member Department*", [
+                "Information Services", "Threat", "Risk", "Financial Crime", 
+                "Operations", "Compliance", "Legal", "Human Resources", "Other"
+            ])
+            
+            # Get teams for selection
+            teams = get_teams_for_selection()
+            if teams:
+                team_options = {name: team_id for team_id, name in teams}
+                selected_team = st.selectbox("Select Team*", list(team_options.keys()))
+                team_id = team_options[selected_team] if selected_team else None
+            else:
+                st.warning("No teams available. Create a team first.")
+                team_id = None
+            
+            is_leader = st.checkbox("Team Leader", help="Check if this member is the team leader")
+            
+            if st.form_submit_button("Add Member", type="primary"):
+                if member_name.strip() and team_id:
+                    success, message = add_team_member(team_id, member_name.strip(), member_dept, is_leader)
+                    if success:
+                        st.success(message)
+                        
+                        # Check for dual role
+                        if check_dual_role_member(member_name.strip()):
+                            st.info(f"ℹ️ Note: '{member_name}' is also a coach and will get dual scoring")
+                        
+                    else:
+                        st.error(message)
+                else:
+                    st.error("Please fill all required fields")
+    
+    st.markdown("---")
+    
+    # ========== CURRENT STATS ==========
+    st.markdown("### 📊 Current System Statistics")
+    stats = get_database_stats()
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        st.metric("Teams", stats["Active Teams"])
+    with col2:
+        st.metric("Members", stats["Active Members"]) 
+    with col3:
+        st.metric("Coaches", stats["Active Coaches"])
+    with col4:
+        st.metric("Events", stats["Active Events"])
+    with col5:
+        st.metric("Attendance Records", stats["Attendance Records"])
+    
+    # ========== IMPORTANT NOTES ==========
+    with st.expander("ℹ️ Important Notes"):
+        st.markdown("""
+        **Scoring Rules (Automatically Applied):**
+        - **Members**: Get 1 point per event attended
+        - **Coaches**: Get 2 points per event attended, shared to ALL their teams
+        - **Dual Roles**: Members who are also coaches get both member (1pt) and coach (2pts) for same event
+        - **New Members**: Automatically get attendance records for all existing events (default: not attended)
+        - **Team Leaders**: Only one leader per team (automatically updated)
+        
+        **Data Validation:**
+        - Team names must be unique
+        - Coach names must be unique  
+        - Member names can exist in multiple teams (if they coach multiple teams)
+        - All changes are immediately reflected in scoring views
+        """)
 
 if __name__ == "__main__":
     main()
