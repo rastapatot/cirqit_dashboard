@@ -549,8 +549,10 @@ def show_admin_panel():
             with st.form("add_coach_form"):
                 coach_name = st.text_input("Coach Name*", placeholder="Enter full name")
                 coach_dept = st.selectbox("Department*", [
-                    "Information Services", "Threat", "Risk", "Financial Crime", 
-                    "Operations", "Compliance", "Legal", "Human Resources", "Other"
+                    "Technical Services and Support", 
+                    "Threat", 
+                    "Information Services", 
+                    "Product Management"
                 ])
                 
                 if st.form_submit_button("Add Coach", type="primary"):
@@ -569,8 +571,10 @@ def show_admin_panel():
             with st.form("add_team_form"):
                 team_name = st.text_input("Team Name*", placeholder="Enter unique team name")
                 team_dept = st.selectbox("Team Department*", [
-                    "Information Services", "Threat", "Risk", "Financial Crime", 
-                    "Operations", "Compliance", "Legal", "Human Resources", "Other"
+                    "Technical Services and Support", 
+                    "Threat", 
+                    "Information Services", 
+                    "Product Management"
                 ])
                 
                 # Get coaches for selection
@@ -601,8 +605,10 @@ def show_admin_panel():
             with st.form("add_member_form"):
                 member_name = st.text_input("Member Name*", placeholder="Enter full name")
                 member_dept = st.selectbox("Member Department*", [
-                    "Information Services", "Threat", "Risk", "Financial Crime", 
-                    "Operations", "Compliance", "Legal", "Human Resources", "Other"
+                    "Technical Services and Support", 
+                    "Threat", 
+                    "Information Services", 
+                    "Product Management"
                 ])
                 
                 # Get teams for selection
