@@ -241,13 +241,12 @@ def main():
 def show_main_interface():
     """Show main dashboard interface"""
     
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "🏆 Team Leaderboard", 
         "👥 Team Explorer", 
         "🎓 Coach Explorer", 
         "📊 Event Analytics",
-        "⚙️ Admin Panel",
-        "➕ Team Management"
+        "⚙️ Admin Panel"
     ])
     
     with tab1:
@@ -264,9 +263,6 @@ def show_main_interface():
     
     with tab5:
         show_admin_panel()
-    
-    with tab6:
-        show_team_management()
 
 def show_team_leaderboard():
     """Display team leaderboard"""
@@ -538,6 +534,137 @@ def show_admin_panel():
                         st.success(f"✅ Event '{event_name}' added!")
                     else:
                         st.error("Please enter an event name")
+        
+        # ========== TEAM MANAGEMENT SECTION ==========
+        st.markdown("---")
+        st.markdown("### ➕ Team Management")
+        st.markdown("Add new teams, members, and coaches to the system")
+        
+        # Three main sections in columns
+        col1, col2, col3 = st.columns(3)
+        
+        # ========== ADD NEW COACH ==========
+        with col1:
+            st.markdown("#### 👤 Add New Coach")
+            with st.form("add_coach_form"):
+                coach_name = st.text_input("Coach Name*", placeholder="Enter full name")
+                coach_dept = st.selectbox("Department*", [
+                    "Information Services", "Threat", "Risk", "Financial Crime", 
+                    "Operations", "Compliance", "Legal", "Human Resources", "Other"
+                ])
+                
+                if st.form_submit_button("Add Coach", type="primary"):
+                    if coach_name.strip():
+                        success, message = add_new_coach(coach_name.strip(), coach_dept)
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
+                    else:
+                        st.error("Please enter coach name")
+        
+        # ========== ADD NEW TEAM ==========
+        with col2:
+            st.markdown("#### 🏆 Add New Team")
+            with st.form("add_team_form"):
+                team_name = st.text_input("Team Name*", placeholder="Enter unique team name")
+                team_dept = st.selectbox("Team Department*", [
+                    "Information Services", "Threat", "Risk", "Financial Crime", 
+                    "Operations", "Compliance", "Legal", "Human Resources", "Other"
+                ])
+                
+                # Get coaches for selection
+                coaches = get_existing_coaches()
+                if coaches:
+                    coach_options = {f"{name} ({dept})": coach_id for coach_id, name, dept in coaches}
+                    selected_coach = st.selectbox("Select Coach*", list(coach_options.keys()))
+                    coach_id = coach_options[selected_coach] if selected_coach else None
+                else:
+                    st.warning("No coaches available. Add a coach first.")
+                    coach_id = None
+                
+                total_members = st.number_input("Expected Team Size*", min_value=1, max_value=10, value=5)
+                
+                if st.form_submit_button("Create Team", type="primary"):
+                    if team_name.strip() and coach_id:
+                        success, message = add_new_team(team_name.strip(), total_members, coach_id, team_dept)
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
+                    else:
+                        st.error("Please fill all required fields")
+        
+        # ========== ADD TEAM MEMBER ==========
+        with col3:
+            st.markdown("#### 👥 Add Team Member")
+            with st.form("add_member_form"):
+                member_name = st.text_input("Member Name*", placeholder="Enter full name")
+                member_dept = st.selectbox("Member Department*", [
+                    "Information Services", "Threat", "Risk", "Financial Crime", 
+                    "Operations", "Compliance", "Legal", "Human Resources", "Other"
+                ])
+                
+                # Get teams for selection
+                teams = get_teams_for_selection()
+                if teams:
+                    team_options = {name: team_id for team_id, name in teams}
+                    selected_team = st.selectbox("Select Team*", list(team_options.keys()))
+                    team_id = team_options[selected_team] if selected_team else None
+                else:
+                    st.warning("No teams available. Create a team first.")
+                    team_id = None
+                
+                is_leader = st.checkbox("Team Leader", help="Check if this member is the team leader")
+                
+                if st.form_submit_button("Add Member", type="primary"):
+                    if member_name.strip() and team_id:
+                        success, message = add_team_member(team_id, member_name.strip(), member_dept, is_leader)
+                        if success:
+                            st.success(message)
+                            
+                            # Check for dual role
+                            if check_dual_role_member(member_name.strip()):
+                                st.info(f"ℹ️ Note: '{member_name}' is also a coach and will get dual scoring")
+                            
+                        else:
+                            st.error(message)
+                    else:
+                        st.error("Please fill all required fields")
+        
+        # ========== CURRENT STATS ==========
+        st.markdown("---")
+        st.markdown("#### 📊 Current System Statistics")
+        stats = get_database_stats()
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            st.metric("Teams", stats["Active Teams"])
+        with col2:
+            st.metric("Members", stats["Active Members"]) 
+        with col3:
+            st.metric("Coaches", stats["Active Coaches"])
+        with col4:
+            st.metric("Events", stats["Active Events"])
+        with col5:
+            st.metric("Attendance Records", stats["Attendance Records"])
+        
+        # ========== IMPORTANT NOTES ==========
+        with st.expander("ℹ️ Team Management Notes"):
+            st.markdown("""
+            **Scoring Rules (Automatically Applied):**
+            - **Members**: Get 1 point per event attended
+            - **Coaches**: Get 2 points per event attended, shared to ALL their teams
+            - **Dual Roles**: Members who are also coaches get both member (1pt) and coach (2pts) for same event
+            - **New Members**: Automatically get attendance records for all existing events (default: not attended)
+            - **Team Leaders**: Only one leader per team (automatically updated)
+            
+            **Data Validation:**
+            - Team names must be unique
+            - Coach names must be unique  
+            - Member names can exist in multiple teams (if they coach multiple teams)
+            - All changes are immediately reflected in scoring views
+            """)
     
     else:
         st.info("Enter the admin password to access management features")
