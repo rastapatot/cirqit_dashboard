@@ -32,7 +32,7 @@ This is the **production-ready scoring system** that replaces the flawed CSV-bas
 │   ├── scoring.py         # Scoring calculations
 │   ├── event_management.py # Event and attendance management
 │   └── __init__.py
-├── 📊 app_production.py    # Main Streamlit application
+├── 📊 streamlit_app.py     # Main Streamlit application
 ├── 🚀 run_migration.py    # Migration tool
 └── 📋 requirements_production.txt
 ```
@@ -74,7 +74,7 @@ This will:
 
 ### 3. Run Production Dashboard
 ```bash
-streamlit run app_production.py
+streamlit run streamlit_app.py
 ```
 
 ## Key Features

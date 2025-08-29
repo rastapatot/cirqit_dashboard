@@ -80,7 +80,7 @@ def main():
     if success:
         print("\n🎉 Migration completed successfully!")
         print("You can now run the production dashboard with:")
-        print("  streamlit run app_production.py")
+        print("  streamlit run streamlit_app.py")
         
         # Validate final result
         integrity_report = db_manager.validate_data_integrity()

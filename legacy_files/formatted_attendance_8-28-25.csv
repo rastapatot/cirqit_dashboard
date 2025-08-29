@@ -1,0 +1,288 @@
+event_id,member_id,coach_id,attended,points_earned,session_type,notes,recorded_by
+10,123.0,,1,5,full_day,Duration: 6h 16m 20s,system_import
+10,456.0,,1,5,full_day,Duration: 6h 29m 20s,system_import
+10,304.0,,1,5,full_day,Duration: 6h 25m 12s,system_import
+10,708.0,,1,5,full_day,Duration: 5h 22m 52s,system_import
+10,15.0,,1,5,full_day,Duration: 2h 55m 40s,system_import
+10,491.0,,1,5,full_day,Duration: 1h 15m 1s,system_import
+10,8.0,,1,5,full_day,Duration: 5h 14m 24s,system_import
+10,19.0,,1,5,full_day,Duration: 4h 55m 58s,system_import
+10,271.0,,1,5,full_day,Duration: 5h 22m 10s,system_import
+10,617.0,,1,5,full_day,Duration: 6h 17m 58s,system_import
+10,4.0,,1,5,full_day,Duration: 6h 19m 17s,system_import
+10,334.0,,1,5,full_day,Duration: 4h 10s,system_import
+10,707.0,,1,5,full_day,Duration: 5h 24m 20s,system_import
+10,150.0,,1,5,full_day,Duration: 3h 5m 33s,system_import
+10,130.0,,1,5,full_day,Duration: 5h 43m 12s,system_import
+10,118.0,,1,5,full_day,Duration: 5h 8m 49s,system_import
+10,572.0,,1,5,full_day,Duration: 4h 33m 45s,system_import
+10,722.0,,1,5,full_day,Duration: 5h 53m 6s,system_import
+10,547.0,,1,5,full_day,Duration: 47m 11s,system_import
+10,,81.0,1,10,full_day,Duration: 4h 50m 12s,system_import
+10,21.0,,1,5,full_day,Duration: 5h 50m 33s,system_import
+10,732.0,,1,5,full_day,Duration: 5h 52m 27s,system_import
+10,429.0,,1,5,full_day,Duration: 4h 24m 20s,system_import
+10,12.0,,1,5,full_day,Duration: 4h 51m 16s,system_import
+10,279.0,,1,5,full_day,Duration: 6h 17m 2s,system_import
+10,112.0,,1,5,full_day,Duration: 5h 33m 21s,system_import
+10,25.0,,1,5,full_day,Duration: 6h 16m 54s,system_import
+10,258.0,,1,5,full_day,Duration: 6h 16m 44s,system_import
+10,5.0,,1,5,full_day,Duration: 6h 16m 38s,system_import
+10,379.0,,1,5,full_day,Duration: 6h 16m 8s,system_import
+10,469.0,,1,5,full_day,Duration: 6h 16m 6s,system_import
+10,2.0,,1,5,full_day,Duration: 4h 53m 55s,system_import
+10,129.0,,1,5,full_day,Duration: 4h 47m 39s,system_import
+10,223.0,,1,5,full_day,Duration: 4h 15m 25s,system_import
+10,700.0,,1,5,full_day,Duration: 5h 14m 44s,system_import
+10,,68.0,1,10,full_day,Duration: 51m 52s,system_import
+10,653.0,,1,5,full_day,Duration: 5h 49m 37s,system_import
+10,177.0,,1,5,full_day,Duration: 5h 3m 13s,system_import
+10,721.0,,1,5,full_day,Duration: 5h 22m 57s,system_import
+10,270.0,,1,5,full_day,Duration: 6h 15m 33s,system_import
+10,24.0,,1,5,full_day,Duration: 4h 13m 56s,system_import
+10,77.0,,1,5,full_day,Duration: 4h 57m 38s,system_import
+10,104.0,,0,0,full_day,Duration: 19m 24s,system_import
+10,94.0,,1,5,full_day,Duration: 6h 15m 12s,system_import
+10,51.0,,1,5,full_day,Duration: 4h 48m 44s,system_import
+10,402.0,,1,5,full_day,Duration: 5h 47m 52s,system_import
+10,128.0,,1,5,full_day,Duration: 5h 36m 20s,system_import
+10,655.0,,1,5,full_day,Duration: 5h 19m 14s,system_import
+10,59.0,,1,5,full_day,Duration: 3h 52m 50s,system_import
+10,152.0,,1,5,full_day,Duration: 5h 47m 43s,system_import
+10,501.0,,1,5,full_day,Duration: 5h 43m 19s,system_import
+10,524.0,,1,5,full_day,Duration: 6h 14m 52s,system_import
+10,121.0,,1,5,full_day,Duration: 5h 41m 36s,system_import
+10,42.0,,1,5,full_day,Duration: 5h 48m 59s,system_import
+10,53.0,,1,5,full_day,Duration: 3h 37m 55s,system_import
+10,68.0,,1,5,full_day,Duration: 5h 21m 29s,system_import
+10,656.0,,1,5,full_day,Duration: 3h 59m 2s,system_import
+10,358.0,,1,5,full_day,Duration: 4h 51m 18s,system_import
+10,303.0,,1,5,full_day,Duration: 5h 18m 39s,system_import
+10,711.0,,1,5,full_day,Duration: 6h 14m 41s,system_import
+10,34.0,,1,5,full_day,Duration: 5h 47m 35s,system_import
+10,190.0,,0,0,full_day,Duration: 7m 17s,system_import
+10,374.0,,1,5,full_day,Duration: 5h 48m 42s,system_import
+10,284.0,,1,5,full_day,Duration: 5h 16m 17s,system_import
+10,357.0,,1,5,full_day,Duration: 5h 8m 28s,system_import
+10,689.0,,1,5,full_day,Duration: 5h 47m 42s,system_import
+10,644.0,,1,5,full_day,Duration: 3h 59m 12s,system_import
+10,48.0,,1,5,full_day,Duration: 5h 14m 38s,system_import
+10,166.0,,1,5,full_day,Duration: 5h 17m 30s,system_import
+10,300.0,,1,5,full_day,Duration: 5h 23m 31s,system_import
+10,305.0,,1,5,full_day,Duration: 5h 3m 49s,system_import
+10,702.0,,1,5,full_day,Duration: 6h 9m 6s,system_import
+10,648.0,,1,5,full_day,Duration: 2h 50m 10s,system_import
+10,13.0,,1,5,full_day,Duration: 1h 25m,system_import
+10,580.0,,1,5,full_day,Duration: 4h 24m 40s,system_import
+10,62.0,,1,5,full_day,Duration: 1h 28m 1s,system_import
+10,56.0,,1,5,full_day,Duration: 4h 41m 21s,system_import
+10,10.0,,1,5,full_day,Duration: 2h 33m 1s,system_import
+10,76.0,,1,5,full_day,Duration: 6h 14m 3s,system_import
+10,356.0,,1,5,full_day,Duration: 5h 47m 19s,system_import
+10,565.0,,1,5,full_day,Duration: 5h 15m 51s,system_import
+10,362.0,,1,5,full_day,Duration: 1h 19m 57s,system_import
+10,219.0,,1,5,full_day,Duration: 6h 13m 47s,system_import
+10,23.0,,1,5,full_day,Duration: 6h 13m 47s,system_import
+10,301.0,,1,5,full_day,Duration: 4h 57m 35s,system_import
+10,206.0,,1,5,full_day,Duration: 2h 16m 18s,system_import
+10,,78.0,1,10,full_day,Duration: 1h 40m 12s,system_import
+10,579.0,,1,5,full_day,Duration: 3h 59m 53s,system_import
+10,640.0,,1,5,full_day,Duration: 5h 48m 16s,system_import
+10,74.0,,1,5,full_day,Duration: 5h 31m 32s,system_import
+10,39.0,,1,5,full_day,Duration: 4h 13m 58s,system_import
+10,78.0,,1,5,full_day,Duration: 5h 13m,system_import
+10,173.0,,1,5,full_day,Duration: 4h 40m 30s,system_import
+10,481.0,,1,5,full_day,Duration: 5h 12m 24s,system_import
+10,367.0,,1,5,full_day,Duration: 5h 50m 55s,system_import
+10,158.0,,1,5,full_day,Duration: 6h 13m 17s,system_import
+10,41.0,,1,5,full_day,Duration: 6h 13m 17s,system_import
+10,496.0,,1,5,full_day,Duration: 4h 22m 18s,system_import
+10,101.0,,1,5,full_day,Duration: 3h 27m 57s,system_import
+10,302.0,,1,5,full_day,Duration: 4h 17s,system_import
+10,243.0,,1,5,full_day,Duration: 5h 12m 35s,system_import
+10,164.0,,1,5,full_day,Duration: 6h 13m 13s,system_import
+10,55.0,,1,5,full_day,Duration: 5h 53m 43s,system_import
+10,38.0,,1,5,full_day,Duration: 4h 45m 40s,system_import
+10,552.0,,1,5,full_day,Duration: 5h 14m 52s,system_import
+10,169.0,,1,5,full_day,Duration: 5h 46m 19s,system_import
+10,249.0,,1,5,full_day,Duration: 5h 46m 6s,system_import
+10,71.0,,0,0,full_day,Duration: 24m 17s,system_import
+10,54.0,,1,5,full_day,Duration: 3h 48m 12s,system_import
+10,99.0,,1,5,full_day,Duration: 1h 43m 20s,system_import
+10,193.0,,1,5,full_day,Duration: 5h 17m 55s,system_import
+10,278.0,,1,5,full_day,Duration: 6h 12m 30s,system_import
+10,17.0,,1,5,full_day,Duration: 4h 42m 6s,system_import
+10,133.0,,1,5,full_day,Duration: 4h 20m 19s,system_import
+10,22.0,,1,5,full_day,Duration: 5h 45m 36s,system_import
+10,167.0,,1,5,full_day,Duration: 3h 53m 14s,system_import
+10,37.0,,1,5,full_day,Duration: 3h 2m 46s,system_import
+10,117.0,,1,5,full_day,Duration: 3h 43m 4s,system_import
+10,497.0,,1,5,full_day,Duration: 4h 23m 42s,system_import
+10,175.0,,1,5,full_day,Duration: 4h 40m 24s,system_import
+10,69.0,,1,5,full_day,Duration: 4h 46m 44s,system_import
+10,313.0,,1,5,full_day,Duration: 6h 11m 54s,system_import
+10,236.0,,1,5,full_day,Duration: 5h 30m 24s,system_import
+10,29.0,,1,5,full_day,Duration: 4h 51s,system_import
+10,369.0,,1,5,full_day,Duration: 4h 47m 1s,system_import
+10,232.0,,1,5,full_day,Duration: 5h 27m 58s,system_import
+10,448.0,,1,5,full_day,Duration: 5h 31m 12s,system_import
+10,168.0,,1,5,full_day,Duration: 4h 59m 54s,system_import
+10,113.0,,1,5,full_day,Duration: 4h 32m 29s,system_import
+10,72.0,,1,5,full_day,Duration: 5h 44m 21s,system_import
+10,20.0,,1,5,full_day,Duration: 5h 44m 19s,system_import
+10,288.0,,1,5,full_day,Duration: 4h 40m 59s,system_import
+10,3.0,,1,5,full_day,Duration: 4h 49m 1s,system_import
+10,560.0,,1,5,full_day,Duration: 5h 15m 55s,system_import
+10,664.0,,1,5,full_day,Duration: 5h 44m 18s,system_import
+10,43.0,,1,5,full_day,Duration: 3h 16m 27s,system_import
+10,324.0,,1,5,full_day,Duration: 6h 11m 1s,system_import
+10,226.0,,1,5,full_day,Duration: 4h 18m 46s,system_import
+10,250.0,,1,5,full_day,Duration: 4h 28m 40s,system_import
+10,252.0,,1,5,full_day,Duration: 5h 59m 22s,system_import
+10,73.0,,1,5,full_day,Duration: 4h 33m 23s,system_import
+10,694.0,,1,5,full_day,Duration: 5h 25m 21s,system_import
+10,179.0,,1,5,full_day,Duration: 5h 21m 58s,system_import
+10,290.0,,1,5,full_day,Duration: 5h 20m 31s,system_import
+10,227.0,,1,5,full_day,Duration: 4h 57m 27s,system_import
+10,196.0,,1,5,full_day,Duration: 4h 12m 22s,system_import
+10,124.0,,1,5,full_day,Duration: 5h 57m 57s,system_import
+10,,79.0,1,10,full_day,Duration: 1h 28m 51s,system_import
+10,283.0,,1,5,full_day,Duration: 5h 40m 47s,system_import
+10,52.0,,1,5,full_day,Duration: 6h 10m 1s,system_import
+10,,72.0,1,10,full_day,Duration: 5h 42m 50s,system_import
+10,471.0,,1,5,full_day,Duration: 3h 45m 57s,system_import
+10,174.0,,1,5,full_day,Duration: 2h 48m 12s,system_import
+10,364.0,,1,5,full_day,Duration: 6h 9m 41s,system_import
+10,309.0,,1,5,full_day,Duration: 6h 4m 37s,system_import
+10,31.0,,1,5,full_day,Duration: 6h 7m 57s,system_import
+10,228.0,,1,5,full_day,Duration: 5h 42m 21s,system_import
+10,534.0,,1,5,full_day,Duration: 1h 54m 40s,system_import
+10,132.0,,1,5,full_day,Duration: 37m 22s,system_import
+10,296.0,,1,5,full_day,Duration: 1h 54m 43s,system_import
+10,297.0,,1,5,full_day,Duration: 3h 40m 19s,system_import
+10,224.0,,1,5,full_day,Duration: 4h 3m 38s,system_import
+10,225.0,,1,5,full_day,Duration: 4h 29m 47s,system_import
+10,242.0,,1,5,full_day,Duration: 4h 40m 25s,system_import
+10,79.0,,1,5,full_day,Duration: 4h 50m 26s,system_import
+10,126.0,,1,5,full_day,Duration: 2h 18m 53s,system_import
+10,105.0,,1,5,full_day,Duration: 3h 36m 7s,system_import
+10,330.0,,1,5,full_day,Duration: 6h 7m 48s,system_import
+10,460.0,,1,5,full_day,Duration: 1h 29m 41s,system_import
+10,335.0,,1,5,full_day,Duration: 4h 48m 4s,system_import
+10,16.0,,1,5,full_day,Duration: 5h 40m 29s,system_import
+10,157.0,,1,5,full_day,Duration: 3h 32m 13s,system_import
+10,416.0,,1,5,full_day,Duration: 2h 3m 43s,system_import
+10,93.0,,1,5,full_day,Duration: 3h 7m 28s,system_import
+10,459.0,,1,5,full_day,Duration: 1h 9m 28s,system_import
+10,462.0,,1,5,full_day,Duration: 1h 13m 10s,system_import
+10,,62.0,1,10,full_day,Duration: 5h 5m 18s,system_import
+10,681.0,,0,0,full_day,Duration: 11m 30s,system_import
+10,331.0,,1,5,full_day,Duration: 6h 6m 14s,system_import
+10,58.0,,0,0,full_day,Duration: 21m 15s,system_import
+10,234.0,,1,5,full_day,Duration: 3h 23m 34s,system_import
+10,32.0,,1,5,full_day,Duration: 5h 46m 33s,system_import
+10,510.0,,1,5,full_day,Duration: 54m 28s,system_import
+10,66.0,,1,5,full_day,Duration: 3h 41m 34s,system_import
+10,574.0,,1,5,full_day,Duration: 1h 35m 44s,system_import
+10,114.0,,1,5,full_day,Duration: 5h 38m 4s,system_import
+10,204.0,,1,5,full_day,Duration: 4h 10m 20s,system_import
+10,49.0,,1,5,full_day,Duration: 33m 55s,system_import
+10,207.0,,1,5,full_day,Duration: 3h 48m 34s,system_import
+10,135.0,,1,5,full_day,Duration: 6h 3m,system_import
+10,222.0,,1,5,full_day,Duration: 4h 7m 25s,system_import
+10,134.0,,1,5,full_day,Duration: 2h 30m 35s,system_import
+10,291.0,,1,5,full_day,Duration: 5h 35m 15s,system_import
+10,235.0,,1,5,full_day,Duration: 1h 43m 38s,system_import
+10,450.0,,1,5,full_day,Duration: 3h 21m 58s,system_import
+10,46.0,,1,5,full_day,Duration: 5h 27m 26s,system_import
+10,47.0,,1,5,full_day,Duration: 3h 58m 52s,system_import
+10,229.0,,1,5,full_day,Duration: 55m 55s,system_import
+10,504.0,,1,5,full_day,Duration: 45m 44s,system_import
+10,299.0,,1,5,full_day,Duration: 50m 2s,system_import
+10,186.0,,1,5,full_day,Duration: 5h 24m 55s,system_import
+10,209.0,,1,5,full_day,Duration: 2h 29m 6s,system_import
+10,704.0,,1,5,full_day,Duration: 5h 48m 45s,system_import
+10,151.0,,1,5,full_day,Duration: 4h 32m 42s,system_import
+10,96.0,,1,5,full_day,Duration: 5h 2m 38s,system_import
+10,,64.0,1,10,full_day,Duration: 1h 37m 30s,system_import
+10,505.0,,1,5,full_day,Duration: 40m 11s,system_import
+10,144.0,,1,5,full_day,Duration: 3h 57m 13s,system_import
+10,527.0,,0,0,full_day,Duration: 26m 47s,system_import
+10,60.0,,1,5,full_day,Duration: 1h 40m 49s,system_import
+10,45.0,,1,5,full_day,Duration: 49m 13s,system_import
+10,122.0,,1,5,full_day,Duration: 4h 51m 47s,system_import
+10,513.0,,1,5,full_day,Duration: 2h 17m 53s,system_import
+10,414.0,,1,5,full_day,Duration: 1h 11m 57s,system_import
+10,57.0,,1,5,full_day,Duration: 36m 15s,system_import
+10,415.0,,1,5,full_day,Duration: 1h 57m 38s,system_import
+10,233.0,,1,5,full_day,Duration: 1h 31m 53s,system_import
+10,221.0,,1,5,full_day,Duration: 1h 18m 1s,system_import
+10,310.0,,1,5,full_day,Duration: 1h 33m 21s,system_import
+10,89.0,,1,5,full_day,Duration: 4h 12m 1s,system_import
+10,218.0,,1,5,full_day,Duration: 4h 54m 2s,system_import
+10,,95.0,1,10,full_day,Duration: 3h 26m 38s,system_import
+10,451.0,,1,5,full_day,Duration: 3h 14m 3s,system_import
+10,511.0,,1,5,full_day,Duration: 56m 30s,system_import
+10,165.0,,1,5,full_day,Duration: 3h 28m 1s,system_import
+10,582.0,,1,5,full_day,Duration: 1h 35m 25s,system_import
+10,472.0,,0,0,full_day,Duration: 2m 8s,system_import
+10,,89.0,1,10,full_day,Duration: 1h 10m 26s,system_import
+10,710.0,,1,5,full_day,Duration: 4h 13m 12s,system_import
+10,248.0,,1,5,full_day,Duration: 3h 40m 51s,system_import
+10,,66.0,1,10,full_day,Duration: 1h 57m 18s,system_import
+10,427.0,,1,5,full_day,Duration: 2h 58m 58s,system_import
+10,208.0,,0,0,full_day,Duration: 17m 1s,system_import
+10,,76.0,1,10,full_day,Duration: 50m 41s,system_import
+10,289.0,,0,0,full_day,Duration: 18m 33s,system_import
+10,716.0,,1,5,full_day,Duration: 2h 33m 7s,system_import
+10,428.0,,0,0,full_day,Duration: 14m 35s,system_import
+10,,88.0,0,0,full_day,Duration: 6m 9s,system_import
+10,346.0,,1,5,full_day,Duration: 1h 6m 42s,system_import
+10,67.0,,1,5,full_day,Duration: 4h 49m 27s,system_import
+10,239.0,,1,5,full_day,Duration: 5h 17m 10s,system_import
+10,,70.0,1,10,full_day,Duration: 1h 11m 30s,system_import
+10,476.0,,0,0,full_day,Duration: 9m,system_import
+10,90.0,,1,5,full_day,Duration: 5h 13m 56s,system_import
+10,220.0,,0,0,full_day,Duration: 36s,system_import
+10,230.0,,1,5,full_day,Duration: 3h 47m 5s,system_import
+10,97.0,,1,5,full_day,Duration: 4h 45m 7s,system_import
+10,26.0,,1,5,full_day,Duration: 1h 53m 41s,system_import
+10,14.0,,0,0,full_day,Duration: 32s,system_import
+10,155.0,,1,5,full_day,Duration: 1h 19m 50s,system_import
+10,461.0,,0,0,full_day,Duration: 20m 16s,system_import
+10,466.0,,1,5,full_day,Duration: 45m 46s,system_import
+10,244.0,,1,5,full_day,Duration: 5h 10s,system_import
+10,265.0,,1,5,full_day,Duration: 2h 14m 15s,system_import
+10,650.0,,1,5,full_day,Duration: 2h 38m 15s,system_import
+10,464.0,,0,0,full_day,Duration: 57s,system_import
+10,,82.0,1,10,full_day,Duration: 35m 22s,system_import
+10,463.0,,0,0,full_day,Duration: 2m,system_import
+10,163.0,,1,5,full_day,Duration: 4h 43m 45s,system_import
+10,332.0,,0,0,full_day,Duration: 49s,system_import
+10,253.0,,1,5,full_day,Duration: 2h 46m 34s,system_import
+10,264.0,,1,5,full_day,Duration: 1h 7m 42s,system_import
+10,667.0,,0,0,full_day,Duration: 32s,system_import
+10,110.0,,1,5,full_day,Duration: 3h 22m 20s,system_import
+10,520.0,,1,5,full_day,Duration: 3h 38m 54s,system_import
+10,65.0,,1,5,full_day,Duration: 43m 33s,system_import
+10,306.0,,1,5,full_day,Duration: 1h 24m 4s,system_import
+10,255.0,,0,0,full_day,Duration: 18m 16s,system_import
+10,146.0,,1,5,full_day,Duration: 2h 17m 3s,system_import
+10,91.0,,1,5,full_day,Duration: 1h 27m 36s,system_import
+10,,99.0,0,0,full_day,Duration: 20m 14s,system_import
+10,,98.0,0,0,full_day,Duration: 21m 35s,system_import
+10,70.0,,0,0,full_day,Duration: 1m 20s,system_import
+10,,94.0,1,10,full_day,Duration: 2h 7m 46s,system_import
+10,333.0,,0,0,full_day,Duration: 21m 53s,system_import
+10,399.0,,1,5,full_day,Duration: 54m 56s,system_import
+10,685.0,,0,0,full_day,Duration: 3m 50s,system_import
+10,171.0,,0,0,full_day,Duration: 1m 16s,system_import
+10,185.0,,1,5,full_day,Duration: 1h 30m 40s,system_import
+10,154.0,,0,0,full_day,Duration: 10m 21s,system_import
+10,182.0,,1,5,full_day,Duration: 45m 26s,system_import
+10,,84.0,0,0,full_day,Duration: 11m 37s,system_import
+10,28.0,,0,0,full_day,Duration: 12m 4s,system_import
+10,92.0,,0,0,full_day,Duration: 8m 33s,system_import
+10,142.0,,0,0,full_day,Duration: 6m 28s,system_import
+10,141.0,,0,0,full_day,Duration: 2m 56s,system_import
+10,241.0,,0,0,full_day,Duration: 50s,system_import
