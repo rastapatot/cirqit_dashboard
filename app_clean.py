@@ -638,6 +638,124 @@ def show_admin_panel():
                     else:
                         st.error("Please fill all required fields")
         
+        # ========== TEAM EDITING SECTION ==========
+        st.markdown("---")
+        st.markdown("### ✏️ Edit Existing Teams")
+        st.markdown("Rename existing teams while preserving all scores and data")
+        
+        with st.expander("🔧 Team Name Editor"):
+            # Load all teams
+            conn = sqlite3.connect(DB_FILE)
+            teams_df = pd.read_sql_query("""
+                SELECT id, name, total_members, department 
+                FROM teams 
+                WHERE is_active = 1 
+                ORDER BY name
+            """, conn)
+            conn.close()
+            
+            if not teams_df.empty:
+                col1, col2 = st.columns([1, 1])
+                
+                with col1:
+                    st.markdown("#### Select Team to Rename")
+                    # Create a selectbox with team info
+                    team_options = [f"{row['name']} (ID: {row['id']}, {row['total_members']} members)" 
+                                  for _, row in teams_df.iterrows()]
+                    
+                    selected_option = st.selectbox(
+                        "Choose team to rename:",
+                        options=team_options,
+                        key="team_select"
+                    )
+                    
+                    if selected_option:
+                        # Extract team ID from selection
+                        team_id = int(selected_option.split("ID: ")[1].split(",")[0])
+                        selected_team = teams_df[teams_df['id'] == team_id].iloc[0]
+                        
+                        st.info(f"**Current name:** {selected_team['name']}")
+                        st.info(f"**Department:** {selected_team['department']}")
+                        st.info(f"**Members:** {selected_team['total_members']}")
+                
+                with col2:
+                    st.markdown("#### Enter New Name")
+                    new_team_name = st.text_input(
+                        "New team name:",
+                        placeholder="Enter the new team name",
+                        key="new_team_name"
+                    )
+                    
+                    if st.button("🔄 Rename Team", type="primary"):
+                        if not new_team_name.strip():
+                            st.error("Please enter a new team name")
+                        elif new_team_name.strip() == selected_team['name']:
+                            st.error("New name is the same as current name")
+                        else:
+                            # Check if new name already exists
+                            conn = sqlite3.connect(DB_FILE)
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT id FROM teams WHERE name = ? AND is_active = 1", (new_team_name.strip(),))
+                            existing = cursor.fetchone()
+                            
+                            if existing:
+                                st.error(f"Team name '{new_team_name.strip()}' already exists")
+                                conn.close()
+                            else:
+                                try:
+                                    # Get scores before rename for verification
+                                    cursor.execute("""
+                                        SELECT member_points, coach_points, bonus_points, final_score
+                                        FROM v_team_scores WHERE team_id = ?
+                                    """, (team_id,))
+                                    scores_before = cursor.fetchone()
+                                    
+                                    # Perform the rename
+                                    cursor.execute("""
+                                        UPDATE teams 
+                                        SET name = ?, updated_at = CURRENT_TIMESTAMP 
+                                        WHERE id = ?
+                                    """, (new_team_name.strip(), team_id))
+                                    
+                                    # Log the change
+                                    cursor.execute("""
+                                        INSERT INTO audit_log (table_name, record_id, action, old_values, new_values, changed_by, changed_at)
+                                        VALUES ('teams', ?, 'rename', ?, ?, 'admin_panel', CURRENT_TIMESTAMP)
+                                    """, (team_id, f"name: {selected_team['name']}", f"name: {new_team_name.strip()}"))
+                                    
+                                    conn.commit()
+                                    
+                                    # Verify scores preserved
+                                    cursor.execute("""
+                                        SELECT member_points, coach_points, bonus_points, final_score
+                                        FROM v_team_scores WHERE team_id = ?
+                                    """, (team_id,))
+                                    scores_after = cursor.fetchone()
+                                    
+                                    conn.close()
+                                    
+                                    # Clear cache to show updated data
+                                    clear_cache()
+                                    
+                                    st.success(f"✅ Team renamed successfully!")
+                                    st.success(f"**{selected_team['name']}** → **{new_team_name.strip()}**")
+                                    
+                                    if scores_before and scores_after:
+                                        if scores_before == scores_after:
+                                            st.success("🔐 All scores preserved!")
+                                            st.info(f"Scores: Members={scores_after[0]}, Coach={scores_after[1]}, Bonus={scores_after[2]}, Total={scores_after[3]}")
+                                        else:
+                                            st.warning("⚠️ Scores may have changed during rename")
+                                    
+                                    st.rerun()
+                                    
+                                except Exception as e:
+                                    conn.rollback()
+                                    conn.close()
+                                    st.error(f"❌ Error renaming team: {str(e)}")
+            else:
+                st.warning("No active teams found in database")
+
         # ========== CURRENT STATS ==========
         st.markdown("---")
         st.markdown("#### 📊 Current System Statistics")
