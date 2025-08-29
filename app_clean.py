@@ -26,7 +26,7 @@ def load_team_leaderboard():
 def load_coach_leaderboard():
     """Load coach leaderboard data from database"""
     conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT * FROM v_coach_scores ORDER BY total_points DESC", conn)
+    df = pd.read_sql_query("SELECT * FROM v_coach_scores ORDER BY total_coach_points DESC", conn)
     conn.close()
     return df
 
@@ -201,6 +201,131 @@ def check_dual_role_member(member_name):
     conn.close()
     return result is not None
 
+# ================== BONUS POINTS FUNCTIONS ==================
+
+def get_all_members_for_bonus():
+    """Get all active members for bonus point selection"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT m.id, m.name, t.name as team_name, m.department
+        FROM members m
+        JOIN teams t ON m.team_id = t.id
+        WHERE m.is_active = 1 AND t.is_active = 1
+        ORDER BY m.name
+    """)
+    members = cursor.fetchall()
+    conn.close()
+    return members
+
+def get_all_coaches_for_bonus():
+    """Get all active coaches for bonus point selection"""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, department FROM coaches WHERE is_active = 1 ORDER BY name")
+    coaches = cursor.fetchall()
+    conn.close()
+    return coaches
+
+def award_member_bonus_points(member_id, reason, awarded_by, points=1):
+    """Award bonus points to a member"""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO member_bonus_points (member_id, points, reason, awarded_by)
+            VALUES (?, ?, ?, ?)
+        """, (member_id, points, reason, awarded_by))
+        
+        conn.commit()
+        conn.close()
+        clear_cache()
+        return True, f"Successfully awarded {points} bonus point(s) to member"
+        
+    except Exception as e:
+        return False, f"Error awarding bonus points: {str(e)}"
+
+def award_coach_bonus_points(coach_id, reason, awarded_by, points=2):
+    """Award bonus points to a coach"""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO coach_bonus_points (coach_id, points, reason, awarded_by)
+            VALUES (?, ?, ?, ?)
+        """, (coach_id, points, reason, awarded_by))
+        
+        conn.commit()
+        conn.close()
+        clear_cache()
+        return True, f"Successfully awarded {points} bonus point(s) to coach"
+        
+    except Exception as e:
+        return False, f"Error awarding bonus points: {str(e)}"
+
+def get_member_bonus_history(member_id):
+    """Get bonus point history for a member"""
+    conn = sqlite3.connect(DB_FILE)
+    df = pd.read_sql_query("""
+        SELECT points, reason, awarded_by, awarded_at
+        FROM member_bonus_points
+        WHERE member_id = ? AND is_active = 1
+        ORDER BY awarded_at DESC
+    """, conn, params=(member_id,))
+    conn.close()
+    return df
+
+def get_coach_bonus_history(coach_id):
+    """Get bonus point history for a coach"""
+    conn = sqlite3.connect(DB_FILE)
+    df = pd.read_sql_query("""
+        SELECT points, reason, awarded_by, awarded_at
+        FROM coach_bonus_points
+        WHERE coach_id = ? AND is_active = 1
+        ORDER BY awarded_at DESC
+    """, conn, params=(coach_id,))
+    conn.close()
+    return df
+
+def get_detailed_coach_info(coach_id):
+    """Get detailed information about a specific coach"""
+    conn = sqlite3.connect(DB_FILE)
+    
+    # Basic coach info
+    coach_info = pd.read_sql_query("""
+        SELECT * FROM v_coach_scores WHERE coach_id = ?
+    """, conn, params=(coach_id,))
+    
+    # Teams coached by this coach
+    teams_coached = pd.read_sql_query("""
+        SELECT t.id, t.name, t.total_members, t.department,
+               COUNT(DISTINCT m.id) as actual_members,
+               COALESCE(ts.final_score, 0) as team_score,
+               COALESCE(ts.member_attendance_rate, 0) as attendance_rate
+        FROM teams t
+        LEFT JOIN members m ON t.id = m.team_id AND m.is_active = 1
+        LEFT JOIN v_team_scores ts ON t.id = ts.team_id
+        WHERE t.coach_id = ? AND t.is_active = 1
+        GROUP BY t.id, t.name, t.total_members, t.department, ts.final_score, ts.member_attendance_rate
+        ORDER BY ts.final_score DESC
+    """, conn, params=(coach_id,))
+    
+    # Coach attendance history
+    attendance_history = pd.read_sql_query("""
+        SELECT e.name as event_name, e.event_date, 
+               CASE WHEN a.attended = 1 THEN 'Yes' ELSE 'No' END as attended,
+               a.points_earned
+        FROM events e
+        LEFT JOIN attendance a ON e.id = a.event_id AND a.coach_id = ?
+        WHERE e.is_active = 1
+        ORDER BY e.event_date DESC
+    """, conn, params=(coach_id,))
+    
+    conn.close()
+    return coach_info, teams_coached, attendance_history
+
 def main():
     st.set_page_config(
         page_title="CirQit Hackathon Dashboard",
@@ -275,14 +400,44 @@ def show_team_leaderboard():
         st.warning("No team data available")
         return
     
-    # Display options
-    col1, col2 = st.columns([3, 1])
+    # Search and filter options
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        search_term = st.text_input("🔍 Search teams", placeholder="Search by team name or department...")
+    
     with col2:
-        show_top = st.selectbox("Show top teams", [10, 25, 50, "All"], index=0)
-        if show_top != "All":
-            display_df = leaderboard_df.head(show_top)
-        else:
-            display_df = leaderboard_df
+        dept_filter = st.selectbox("Filter by Department", 
+            ["All Departments"] + sorted(leaderboard_df['team_department'].dropna().unique().tolist()),
+            key="team_leaderboard_dept_filter")
+    
+    with col3:
+        show_top = st.selectbox("Show top teams", [10, 25, 50, "All"], index=0, key="team_leaderboard_show_top")
+    
+    # Apply filters
+    filtered_df = leaderboard_df.copy()
+    
+    # Search filter
+    if search_term:
+        mask = (
+            filtered_df['team_name'].str.contains(search_term, case=False, na=False) |
+            filtered_df['team_department'].str.contains(search_term, case=False, na=False)
+        )
+        filtered_df = filtered_df[mask]
+    
+    # Department filter
+    if dept_filter != "All Departments":
+        filtered_df = filtered_df[filtered_df['team_department'] == dept_filter]
+    
+    # Limit results
+    if show_top != "All":
+        display_df = filtered_df.head(show_top)
+    else:
+        display_df = filtered_df
+    
+    # Show results count
+    if search_term or dept_filter != "All Departments":
+        st.info(f"Showing {len(display_df)} of {len(leaderboard_df)} teams")
     
     # Format for display
     display_df = display_df.copy()
@@ -333,9 +488,50 @@ def show_team_explorer():
         st.warning("No team data available")
         return
     
+    # Search and filter for teams
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        team_search = st.text_input("🔍 Search teams", placeholder="Search by team name, department, or member name...")
+    
+    with col2:
+        dept_filter = st.selectbox("Filter by Department", 
+            ["All Departments"] + sorted(team_df['team_department'].dropna().unique().tolist()),
+            key="team_explorer_dept_filter")
+    
+    # Apply filters to team list
+    filtered_teams = team_df.copy()
+    
+    if team_search:
+        # Search in team names, departments, and member names
+        team_mask = (
+            filtered_teams['team_name'].str.contains(team_search, case=False, na=False) |
+            filtered_teams['team_department'].str.contains(team_search, case=False, na=False)
+        )
+        
+        # Also search in member names
+        member_teams = member_df[
+            member_df['member_name'].str.contains(team_search, case=False, na=False)
+        ]['team_name'].unique()
+        
+        member_mask = filtered_teams['team_name'].isin(member_teams)
+        filtered_teams = filtered_teams[team_mask | member_mask]
+    
+    if dept_filter != "All Departments":
+        filtered_teams = filtered_teams[filtered_teams['team_department'] == dept_filter]
+    
+    if len(filtered_teams) == 0:
+        st.warning("No teams match your search criteria")
+        return
+    
     # Team selection
-    team_names = team_df['team_name'].tolist()
-    selected_team = st.selectbox("Select a team to explore", team_names)
+    team_names = filtered_teams['team_name'].tolist()
+    
+    # Show search results count
+    if team_search or dept_filter != "All Departments":
+        st.info(f"Found {len(team_names)} team(s) matching your criteria")
+    
+    selected_team = st.selectbox("Select a team to explore", team_names, key="team_explorer_team_select")
     
     if selected_team:
         # Team info
@@ -352,6 +548,51 @@ def show_team_explorer():
             st.metric("Coach Points", f"{team_info['coach_points']:.0f}")
         with col4:
             st.metric("Attendance Rate", f"{team_info['member_attendance_rate']:.1f}%")
+        
+        # Coach Information Section
+        st.markdown("---")
+        st.subheader("🎓 Coach Information")
+        
+        # Get coach details for this team
+        conn = sqlite3.connect(DB_FILE)
+        coach_details = pd.read_sql_query("""
+            SELECT c.id, c.name, c.department,
+                   cs.coach_sessions_attended, cs.total_coach_points, 
+                   cs.teams_coached_count
+            FROM teams t
+            JOIN coaches c ON t.coach_id = c.id
+            LEFT JOIN v_coach_scores cs ON c.id = cs.coach_id
+            WHERE t.name = ? AND t.is_active = 1 AND c.is_active = 1
+        """, conn, params=(selected_team,))
+        
+        # Get total events for attendance rate calculation
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM events WHERE is_active = 1")
+        total_events = cursor.fetchone()[0]
+        conn.close()
+        
+        if not coach_details.empty:
+            coach = coach_details.iloc[0]
+            
+            # Coach basic info and metrics
+            st.markdown(f"**Coach:** {coach['name']} ({coach['department']})")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Total Points", f"{coach['total_coach_points']:.0f}")
+            
+            with col2:
+                st.metric("Events Attended", f"{coach['coach_sessions_attended']:.0f}")
+            
+            with col3:
+                attendance_rate = (coach['coach_sessions_attended'] / total_events * 100) if total_events > 0 else 0
+                st.metric("Attendance %", f"{attendance_rate:.1f}%")
+            
+            with col4:
+                st.metric("Teams Coached", f"{coach['teams_coached_count']:.0f}")
+        else:
+            st.warning("No coach information found for this team")
         
         # Members table
         if len(team_members) > 0:
@@ -388,39 +629,187 @@ def show_coach_explorer():
         st.warning("No coach data available")
         return
     
-    # Format coach display
-    display_df = coach_df.copy()
-    display_df['rank'] = range(1, len(display_df) + 1)
+    # Search and filter options
+    col1, col2 = st.columns([2, 1])
     
-    # Select columns
-    display_columns = [
-        'rank', 'coach_name', 'coach_department', 'total_points', 
-        'sessions_attended', 'teams_coached_count'
-    ]
+    with col1:
+        coach_search = st.text_input("🔍 Search coaches", placeholder="Search by coach name or department...")
     
-    display_df = display_df[display_columns]
-    display_df.columns = [
-        'Rank', 'Coach Name', 'Department', 'Total Points', 
-        'Sessions Attended', 'Teams Coached'
-    ]
+    with col2:
+        dept_filter = st.selectbox("Filter by Department", 
+            ["All Departments"] + sorted(coach_df['coach_department'].dropna().unique().tolist()),
+            key="coach_explorer_dept_filter")
     
-    # Style
-    styled_df = display_df.style.format({
-        'Total Points': '{:.0f}',
-        'Sessions Attended': '{:.0f}',
-        'Teams Coached': '{:.0f}'
-    })
+    # Apply filters
+    filtered_coaches = coach_df.copy()
     
-    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+    if coach_search:
+        mask = (
+            filtered_coaches['coach_name'].str.contains(coach_search, case=False, na=False) |
+            filtered_coaches['coach_department'].str.contains(coach_search, case=False, na=False)
+        )
+        filtered_coaches = filtered_coaches[mask]
     
-    # Summary stats
+    if dept_filter != "All Departments":
+        filtered_coaches = filtered_coaches[filtered_coaches['coach_department'] == dept_filter]
+    
+    if len(filtered_coaches) == 0:
+        st.warning("No coaches match your search criteria")
+        return
+    
+    # Show search results count
+    if coach_search or dept_filter != "All Departments":
+        st.info(f"Found {len(filtered_coaches)} coach(es) matching your criteria")
+    
+    # Coach selection and detailed view
+    st.markdown("---")
+    
+    # Two-column layout: List and Details
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown("### 📋 Coach List")
+        
+        # Format coach display for selection
+        display_df = filtered_coaches.copy()
+        display_df['rank'] = range(1, len(display_df) + 1)
+        
+        # Create a more compact display for selection
+        coach_options = {}
+        for _, row in display_df.iterrows():
+            label = f"#{row['rank']} {row['coach_name']} ({row['total_coach_points']:.0f} pts)"
+            coach_options[label] = row['coach_id']
+        
+        selected_coach_label = st.radio("Select a coach to view details:", list(coach_options.keys()), key="coach_explorer_coach_select")
+        selected_coach_id = coach_options[selected_coach_label] if selected_coach_label else None
+    
+    with col2:
+        if selected_coach_id:
+            st.markdown("### 👤 Coach Details")
+            
+            # Get detailed coach information
+            coach_info, teams_coached, attendance_history = get_detailed_coach_info(selected_coach_id)
+            
+            if not coach_info.empty:
+                coach = coach_info.iloc[0]
+                
+                # Coach summary metrics
+                st.markdown("#### 🎯 Scoring Summary")
+                
+                col_a, col_b, col_c, col_d, col_e = st.columns(5)
+                
+                with col_a:
+                    coach_sessions = coach.get('coach_sessions_attended', 0)
+                    st.metric("Sessions Attended", f"{coach_sessions:.0f}", help="Total events attended")
+                
+                with col_b:
+                    # Calculate attendance rate (sessions attended / total events)
+                    conn = sqlite3.connect(DB_FILE)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM events WHERE is_active = 1")
+                    total_events = cursor.fetchone()[0]
+                    conn.close()
+                    
+                    attendance_rate = (coach_sessions / total_events * 100) if total_events > 0 else 0
+                    st.metric("Attendance Rate", f"{attendance_rate:.1f}%", help="Individual attendance rate")
+                
+                with col_c:
+                    coach_points = coach.get('total_coach_points', 0)
+                    st.metric("Coach Points", f"{coach_points:.0f}", help="Points earned as a coach (2 pts/event)")
+                
+                with col_d:
+                    member_points = coach.get('total_member_points', 0) 
+                    if member_points > 0:
+                        st.metric("Member Points", f"{member_points:.0f}", help="Points earned as team member (1 pt/event)")
+                    else:
+                        st.metric("Member Points", "0", help="Points earned as team member (1 pt/event)")
+                
+                with col_e:
+                    st.metric("Teams Coached", f"{coach['teams_coached_count']:.0f}")
+                
+                # Coach basic info
+                st.markdown(f"**Name:** {coach['coach_name']}")
+                st.markdown(f"**Department:** {coach['coach_department']}")
+                
+                # Teams coached section
+                if not teams_coached.empty:
+                    st.markdown("---")
+                    st.markdown("### 🏆 Teams Coached")
+                    
+                    if len(teams_coached) == 1:
+                        # Single team - show details directly
+                        team = teams_coached.iloc[0]
+                        st.markdown(f"**Team:** {team['name']}")
+                        
+                        col_x, col_y, col_z = st.columns(3)
+                        with col_x:
+                            st.metric("Team Score", f"{team['team_score']:.0f}")
+                        with col_y:
+                            st.metric("Members", f"{team['actual_members']}/{team['total_members']}")
+                        with col_z:
+                            st.metric("Attendance Rate", f"{team['attendance_rate']:.1f}%")
+                    
+                    else:
+                        # Multiple teams - show list and allow selection
+                        st.markdown(f"**{len(teams_coached)} teams coached:**")
+                        
+                        # Team selection
+                        team_options = {}
+                        for _, team in teams_coached.iterrows():
+                            label = f"{team['name']} ({team['team_score']:.0f} pts, {team['attendance_rate']:.1f}% attendance)"
+                            team_options[label] = team['id']
+                        
+                        selected_team_label = st.selectbox("Select team for details:", list(team_options.keys()), key="coach_team_details_select")
+                        
+                        if selected_team_label:
+                            selected_team_id = team_options[selected_team_label]
+                            team_details = teams_coached[teams_coached['id'] == selected_team_id].iloc[0]
+                            
+                            col_x, col_y, col_z = st.columns(3)
+                            with col_x:
+                                st.metric("Team Score", f"{team_details['team_score']:.0f}")
+                            with col_y:
+                                st.metric("Members", f"{team_details['actual_members']}/{team_details['total_members']}")
+                            with col_z:
+                                st.metric("Attendance Rate", f"{team_details['attendance_rate']:.1f}%")
+                else:
+                    st.info("No teams assigned to this coach")
+                
+                # Attendance history
+                if not attendance_history.empty:
+                    st.markdown("---")
+                    st.markdown("### 📅 Attendance History")
+                    
+                    # Format attendance display
+                    attendance_display = attendance_history.copy()
+                    attendance_display.columns = ['Event', 'Date', 'Attended', 'Points Earned']
+                    
+                    st.dataframe(attendance_display, use_container_width=True, hide_index=True)
+                
+                # Bonus points history
+                bonus_history = get_coach_bonus_history(selected_coach_id)
+                if not bonus_history.empty:
+                    st.markdown("---")
+                    st.markdown("### 🎯 Bonus Points History")
+                    
+                    bonus_display = bonus_history.copy()
+                    bonus_display.columns = ['Points', 'Reason', 'Awarded By', 'Date']
+                    
+                    st.dataframe(bonus_display, use_container_width=True, hide_index=True)
+                    st.metric("Total Bonus Points", bonus_history['points'].sum())
+        else:
+            st.info("Select a coach from the list to view detailed information")
+    
+    # Summary stats at bottom
+    st.markdown("---")
+    st.markdown("### 📊 Coach Summary Statistics")
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Total Coaches", len(coach_df))
     with col2:
-        st.metric("Avg Coach Score", f"{coach_df['total_points'].mean():.1f}")
+        st.metric("Avg Coach Score", f"{coach_df['total_coach_points'].mean():.1f}")
     with col3:
-        st.metric("Top Coach Score", f"{coach_df['total_points'].max():.0f}")
+        st.metric("Top Coach Score", f"{coach_df['total_coach_points'].max():.0f}")
 
 def show_event_analytics():
     """Display event analytics"""
@@ -638,6 +1027,97 @@ def show_admin_panel():
                     else:
                         st.error("Please fill all required fields")
         
+        # ========== BONUS POINTS SECTION ==========
+        st.markdown("---")
+        st.markdown("### 🎯 Award Bonus Points")
+        st.markdown("Award individual bonus points to members and coaches")
+        
+        col1, col2 = st.columns(2)
+        
+        # ========== AWARD MEMBER BONUS POINTS ==========
+        with col1:
+            st.markdown("#### 👤 Award Member Bonus Points")
+            with st.form("award_member_bonus"):
+                # Get all members
+                members = get_all_members_for_bonus()
+                if members:
+                    member_options = {f"{name} ({team_name} - {dept})": member_id for member_id, name, team_name, dept in members}
+                    selected_member = st.selectbox("Select Member*", list(member_options.keys()))
+                    member_id = member_options[selected_member] if selected_member else None
+                else:
+                    st.warning("No members available")
+                    member_id = None
+                
+                member_reason = st.text_area("Reason for bonus points*", placeholder="e.g., Outstanding presentation, innovative solution, exceptional teamwork...")
+                member_points = st.number_input("Bonus Points", value=1, min_value=1, max_value=10, help="Default: 1 point for members")
+                
+                if st.form_submit_button("Award Member Bonus", type="primary"):
+                    if member_id and member_reason.strip():
+                        success, message = award_member_bonus_points(member_id, member_reason.strip(), "admin", member_points)
+                        if success:
+                            st.success(f"✅ {message}")
+                            st.success(f"Awarded {member_points} bonus point(s) to {selected_member.split(' (')[0]}")
+                        else:
+                            st.error(message)
+                    else:
+                        st.error("Please select a member and provide a reason")
+        
+        # ========== AWARD COACH BONUS POINTS ==========
+        with col2:
+            st.markdown("#### 🎓 Award Coach Bonus Points")
+            with st.form("award_coach_bonus"):
+                # Get all coaches
+                coaches = get_all_coaches_for_bonus()
+                if coaches:
+                    coach_options = {f"{name} ({dept})": coach_id for coach_id, name, dept in coaches}
+                    selected_coach = st.selectbox("Select Coach*", list(coach_options.keys()))
+                    coach_id = coach_options[selected_coach] if selected_coach else None
+                else:
+                    st.warning("No coaches available")
+                    coach_id = None
+                
+                coach_reason = st.text_area("Reason for bonus points*", placeholder="e.g., Exceptional mentoring, innovative guidance, outstanding leadership...")
+                coach_points = st.number_input("Bonus Points", value=2, min_value=1, max_value=10, help="Default: 2 points for coaches")
+                
+                if st.form_submit_button("Award Coach Bonus", type="primary"):
+                    if coach_id and coach_reason.strip():
+                        success, message = award_coach_bonus_points(coach_id, coach_reason.strip(), "admin", coach_points)
+                        if success:
+                            st.success(f"✅ {message}")
+                            st.success(f"Awarded {coach_points} bonus point(s) to {selected_coach.split(' (')[0]}")
+                        else:
+                            st.error(message)
+                    else:
+                        st.error("Please select a coach and provide a reason")
+        
+        # ========== BONUS POINTS HISTORY ==========
+        with st.expander("📊 View Bonus Points History"):
+            tab1, tab2 = st.tabs(["Member Bonus History", "Coach Bonus History"])
+            
+            with tab1:
+                if members:
+                    selected_member_history = st.selectbox("Select Member for History", list(member_options.keys()), key="member_history")
+                    if selected_member_history:
+                        member_id_history = member_options[selected_member_history]
+                        history_df = get_member_bonus_history(member_id_history)
+                        if not history_df.empty:
+                            st.dataframe(history_df, use_container_width=True)
+                            st.metric("Total Bonus Points", history_df['points'].sum())
+                        else:
+                            st.info("No bonus points awarded to this member yet")
+            
+            with tab2:
+                if coaches:
+                    selected_coach_history = st.selectbox("Select Coach for History", list(coach_options.keys()), key="coach_history")
+                    if selected_coach_history:
+                        coach_id_history = coach_options[selected_coach_history]
+                        history_df = get_coach_bonus_history(coach_id_history)
+                        if not history_df.empty:
+                            st.dataframe(history_df, use_container_width=True)
+                            st.metric("Total Bonus Points", history_df['points'].sum())
+                        else:
+                            st.info("No bonus points awarded to this coach yet")
+
         # ========== TEAM EDITING SECTION ==========
         st.markdown("---")
         st.markdown("### ✏️ Edit Existing Teams")
@@ -774,20 +1254,32 @@ def show_admin_panel():
             st.metric("Attendance Records", stats["Attendance Records"])
         
         # ========== IMPORTANT NOTES ==========
-        with st.expander("ℹ️ Team Management Notes"):
+        with st.expander("ℹ️ Scoring System Rules"):
             st.markdown("""
-            **Scoring Rules (Automatically Applied):**
+            **Attendance Scoring (Automatic):**
             - **Members**: Get 1 point per event attended
             - **Coaches**: Get 2 points per event attended, shared to ALL their teams
             - **Dual Roles**: Members who are also coaches get both member (1pt) and coach (2pts) for same event
-            - **New Members**: Automatically get attendance records for all existing events (default: not attended)
-            - **Team Leaders**: Only one leader per team (automatically updated)
             
-            **Data Validation:**
+            **Bonus Points Scoring (Manual Award):**
+            - **Member Bonus**: 1 point (default) added to member's individual score AND their team's total
+            - **Coach Bonus**: 2 points (default) added to coach's individual score AND ALL teams they manage
+            - **Coach Logic**: If coach manages 3 teams, they get 2 bonus points, but each team gets 2 bonus points
+            - **Accumulation**: All bonus points accumulate with attendance points for final scores
+            
+            **Data Management:**
             - Team names must be unique
             - Coach names must be unique  
             - Member names can exist in multiple teams (if they coach multiple teams)
+            - New members automatically get attendance records for all existing events (default: not attended)
+            - Team leaders: Only one leader per team (automatically updated)
             - All changes are immediately reflected in scoring views
+            
+            **Bonus Points Notes:**
+            - Bonus points are permanent once awarded
+            - Include detailed reasons for transparency
+            - Points can be customized (1-10 range)
+            - History is tracked for audit purposes
             """)
     
     else:
